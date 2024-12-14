@@ -48,10 +48,12 @@ def update_representation(actor, mode):
         property.EdgeVisibilityOn()
 
 class MapperBase(ABC):
-    def __init__(self, node:DataNode):
-        self.node = node
-        self.mapper_type = MapperType.Unknow
+    def __init__(self):
+        self.node = None
         self.initialize_mapper()
+        
+    def set_node(self,node):
+        self.node = node
 
     @abstractmethod
     def get_prop(self):
@@ -72,10 +74,8 @@ class MapperBase(ABC):
 
 
 class SurfaceMapper3D(MapperBase):
-    def __init__(self, node):
-        MapperBase.__init__(self,node)
-        self.mapper_type = MapperType.Mapper_3D
-        node.set_mapper(self,MapperType.Mapper_3D)
+    def __init__(self):
+        MapperBase.__init__(self)
 
     def get_prop(self):
         return self.actor
@@ -107,14 +107,12 @@ class SurfaceMapper3D(MapperBase):
                 self._apply_actor_properties()
 
 class ImageMapper3D(MapperBase):
-    def __init__(self, node):
-        MapperBase.__init__(self,node)
-        self.mapper_type = MapperType.Mapper_3D
-        node.set_mapper(self,MapperType.Mapper_3D)
+    def __init__(self):
+        MapperBase.__init__(self)
 
     def get_prop(self):
         return self.volume
-
+    
     def initialize_mapper(self):
         self.mapper = vtkSmartVolumeMapper()
         self.volume_property = vtkVolumeProperty()

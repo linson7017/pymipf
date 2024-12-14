@@ -3,7 +3,7 @@ from vtkmodules.vtkInteractionStyle import (
     vtkInteractorStyleImage
 )
 from mipf.core.mapper import *
-
+from mipf.core.data import DataStorage
 from mipf.core.render_window_manager import render_window_manager
 
 
@@ -82,22 +82,24 @@ class RenderWindow:
         elif self.direction == ViewDirection.Coronal:
             return [1, 0, 0, 0, 0, 1, 0, 1, 0]
 
-    def _set_default_mapper3D(self, node):
+    def _get_default_mapper3D(self, node):
         data = node.get_data()
         if data.type.value == DataType.Surface.value:
-            return SurfaceMapper3D(node)
+            return SurfaceMapper3D()
         elif data.type.value == DataType.Image.value:
-            return ImageMapper3D(node)
+            return ImageMapper3D()
         else:
             raise TypeError("There is not valid mapper for node ", node.name)
 
     def update(self):
         for key, node in self.data_storage.nodes.items():
             if self.view_type == ViewType.View3D:
-                mapper = node.mappers.get(MapperType.Mapper_3D)
+                mapper = mapper_manager.get_mapper(node,MapperType.Mapper_3D)
                 if not mapper:
-                    mapper = self._set_default_mapper3D(node)
-                mapper.generate_data_for_renderer()
+                    mapper = self._get_default_mapper3D(node)
+                if mapper:
+                    mapper_manager.set_mapper(node, mapper,MapperType.Mapper_3D)
+                    mapper.generate_data_for_renderer()
                 self.renderer.AddViewProp(mapper.get_prop())
         self.vtk_render_window.Render()
 

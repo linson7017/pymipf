@@ -4,6 +4,9 @@ from mipf.core.utils import *
 from typing import Dict
 from enum import Enum
 import uuid
+from collections import defaultdict
+from mipf.core.data_manager import data_manager
+from mipf.core.mapper_mananger import mapper_manager
 
 
 class DataType(Enum):
@@ -68,40 +71,97 @@ class SurfaceData(BaseData):
 
 
 class DataNode:
-    def __init__(self, name="Unknow"):
+    def __init__(self, name="undefined"):
         self.name = name
+        self.id = uuid.uuid4().hex
         self.properties = {
             "visible": True,
             "color": [1, 1, 1],
             "opacity": 1.0,
-            "selected": False
+            "activate": False,
+            "name": self.name,
+            "id": self.id
         }
-        self.data = None
-        self.id = uuid.uuid4()
+        self.parent = None
         self.mappers = {}
 
     def set_data(self, data: BaseData):
         self.data = data
+        data_manager.add_data(data,self.id)
 
     def get_data(self):
-        return self.data
-
-    def set_mapper(self, mapper, mapper_type):
-        self.mappers[mapper_type] = mapper
+        return data_manager.get_data(self.id)
+    
+    def __getitem__(self,key):
+        return self.properties.get(key)
+    
+    def __setitem__(self,key,value):
+        self.properties[key] = value
+        
+    def __delitem__(self,key):
+        del self.properties[key]
+        
+    def get(self,key,default=None):
+        return self.properties.get(key,default)
+    
+    def pop(self,key,default=None):
+        self.pop(key,default)
 
 
 class DataStorage:
     def __init__(self):
         self.nodes: Dict[uuid.UUID, DataNode] = {}
-        self.data_nodes = {"a": 1, "b": 2}
+        self.children_map = defaultdict(set)
+        
+    def update(self):
+        pass
 
-    def add_node(self, node):
-        if node.id in self.nodes:
-            print("Node ", node.name, " with ", node.id, " has already exist in data storage!")
-        else:
-            self.nodes[node.id] = node
+    def add_node(self, node: DataNode, parent_node=None, **item_keys):
+        _id = node.id
+        _parent_id = "0"
+        if parent_node:
+            _parent_id = parent_node.id
+        node.properties={
+            **node.properties,
+            "parent": _parent_id,
+            **item_keys,
+        }
+        node.parent = parent_node
+        self.nodes[_id] = node
+        self._update_hierarchy()
+        return _id
+        
+            
+    def get_node(self, _id):
+        return self.nodes.get(f"{_id}")
 
     def get_named_node(self, name: str):
         for node in self.nodes.values():
             if node.name == name:
                 return node
+            
+    def _update_hierarchy(self):
+        self.children_map.clear()
+        for node in self.nodes.values():
+            _parent_id = "0"
+            if node.parent:
+                _parent_id = node.parent.id
+            self.children_map[_parent_id].add(node.id)
+        
+    
+
+def import_image_file(filename, data_storage, node_name="undefined"):
+    image_data = ImageData()
+    image_data.read_data(filename)
+    image_node = DataNode(node_name)
+    image_node.set_data(image_data)
+    data_storage.add_node(image_node)
+
+
+def import_surface_file(filename, data_storage, node_name="undefined", color=[1.0, 1.0, 1.0]):
+    surface_data = SurfaceData()
+    surface_data.read_data(filename)
+    surface_node = DataNode(node_name)
+    surface_node.properties["color"] = [1.0, 1.0, 1.0]
+    surface_node.set_data(surface_data)
+    data_storage.add_node(surface_node)
