@@ -12,15 +12,11 @@ from mipf.ui.engine import *
 server = get_server(client_type="vue2")
 
 
-def test_func():
-    pass
-
-
 class Workbench:
-    def __init__(self, server):
+    def __init__(self, server, app_name="Undefined"):
         self.server = server
+        self.app_name = app_name
         self.data_storage = DataStorage()
-        initialize_binding(server, self.data_storage)
         self.state.update(
             {
                 "active_node_type": None,
@@ -60,9 +56,14 @@ class Workbench:
     def setupui(self):
         self.render_window = RenderWindow(self.data_storage, ViewType.View3D)
         self.render_window.setup()
+        initialize_binding(server, self.data_storage)
+        state= server.state
+
         with SinglePageWithDrawerLayout(server) as layout:
             # Toolbar
-            with layout.toolbar:
+            layout.title.set_text(self.app_name)
+            with layout.toolbar as toolbar:
+                vuetify.VSpacer()
                 vuetify.VFileInput(
                     multiple=True,
                     show_size=True,
@@ -90,6 +91,11 @@ class Workbench:
                         with vuetify.VListItem():
                             vuetify.VSwitch(label="Depth Peeling",
                                             v_model=("depth_peeling", True))
+                        with vuetify.VListItem():
+                            vuetify.VSwitch(label="Remote Rendering",
+                                            v_model=("viewMode", "remote"),
+                                            false_value="local",
+                                            true_value="remote")
 
             with layout.drawer as drawer:
                 # drawer components
@@ -123,15 +129,6 @@ class Workbench:
                         self.ctrl.on_server_ready.add(html_view.update)
                         self.ctrl.view_update = html_view.update
                         self.ctrl.reset_camera = html_view.reset_camera
-                        # with vtk_widgets.VtkGeometryRepresentation(
-                        #     id="pointer",
-                        #     property=("{ color: [1, 0, 0]}",),
-                        #     actor=("{ visibility: pointerVisibility }",),
-                        # ):
-                        #     vtk_widgets.VtkAlgorithm(
-                        #         vtk_class="vtkConeSource",
-                        #         state=("cone", {}),
-                        #     )
 
 
 def main(server=None, **kwargs):
@@ -146,9 +143,15 @@ def main(server=None, **kwargs):
     server.client_type = "vue2"
 
     # Init application
-    app = Workbench(server)
-    app.load(r'E:\test_data\CTA\cta.mha', "cta_image")
+    app = Workbench(server, "MIPF")
+    # app.load(r'E:\test_data\CTA\cta.mha', "cta_image")
     app.load(r'E:\test_data\CTA\vessel_smooth.vtp', "vessel_surface")
+    pointset = PointSetData()
+    pointset.pointset.append([0, 0, 0])
+    pointset_node = DataNode()
+    pointset_node.name = "pointset"
+    pointset_node.set_data(pointset)
+    app.data_storage.add_node(pointset_node)
 
     app.setupui()
 

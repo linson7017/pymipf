@@ -20,7 +20,7 @@ class PipelineManager:
         result = self._add_children([], "0")
         self._state[self._name] = result
         return result
-    
+
     def _add_children(self, list_to_fill, node_id):
         for child_id in self.data_storage.children_map[node_id]:
             node = self.data_storage.nodes[child_id]
@@ -30,17 +30,16 @@ class PipelineManager:
             self._add_children(list_to_fill, node.get("id"))
 
         return list_to_fill
-    
 
     def add_node(self, node: DataNode, parent_node=None, **item_keys):
-        append_keys={
+        append_keys = {
             **PipelineManager.DEFAULT_NODE,
             **item_keys
         }
-        _id = self.data_storage.add_node(node,parent_node,**append_keys)
+        _id = self.data_storage.add_node(node, parent_node, **append_keys)
         self.update()
         return _id
-    
+
     def remove_node(self, _id):
         for id in self.data_storage.children_map[_id]:
             self.remove_node(id)
@@ -138,7 +137,7 @@ class SurfaceDataPropertyCard:
     def __call__(self, *args, **kwds):
         return self.ui
 
-    def _property_card_title(self,title, ui_icon):
+    def _property_card_title(self, title, ui_icon):
         with vuetify.VCardTitle(
             classes="grey lighten-1 pa-0 grey--text text--darken-3",
             style="user-select: none; cursor: pointer",
@@ -153,36 +152,23 @@ class SurfaceDataPropertyCard:
         vuetify.VSpacer()
 
     def _property_card_text(self):
-        with vuetify.VRow(classes="pa-0", dense=True):
-            with vuetify.VCol(cols="6"):
-                vuetify.VSelect(
-                    v_model=("current_representation", Representation.Surface),
-                    items=(
-                        "representations",
-                        [
-                            {"text": "Points", "value": 0},
-                            {"text": "Wireframe", "value": 1},
-                            {"text": "Surface", "value": 2},
-                            {"text": "SurfaceWithEdges", "value": 3},
-                        ],
-                    ),
-                    label="Representation",
-                    hide_details=True,
-                    dense=True,
-                    outlined=True,
-                    classes="pt-1",
-                )
-            with vuetify.VCol(cols="6"):
-                vuetify.VSlider(
-                    v_model=("current_opacity", 1.0),
-                    min=0,
-                    max=1,
-                    step=0.1,
-                    label="Opacity",
-                    classes="mt-1",
-                    hide_details=True,
-                    dense=True,
-                )
+            vuetify.VSelect(
+                v_model=("current_representation", Representation.Surface),
+                items=(
+                    "representations",
+                    [
+                        {"text": "Points", "value": 0},
+                        {"text": "Wireframe", "value": 1},
+                        {"text": "Surface", "value": 2},
+                        {"text": "SurfaceWithEdges", "value": 3},
+                    ],
+                ),
+                label="Representation",
+                hide_details=True,
+                dense=True,
+                outlined=True,
+                classes="pt-1",
+            )
             vuetify.VColorPicker(mode='rgba', v_model=(
                 "surface_color", "#FFFFFFFF"))
 
@@ -196,15 +182,32 @@ class SurfaceDataPropertyCard:
                 self._property_card_text()
             with ui_card_actions() as card_actions:
                 self._property_card_actions()
-                
+        with ui_property_card("image") as card:
+            card_title = self._property_card_title(
+                title="Properties",
+                ui_icon="mdi-tools",
+            )
+            with ui_card_text() as card_text:
+                vuetify.VRangeSlider(
+                    thumb_size=16,
+                    thumb_label="always",
+                    label="Window",
+                    v_model=("image_level_window", [100, 2000]),
+                    min=("image_min", -2000),
+                    max=("image_max", 4000),
+                    dense=True,
+                    hide_details=True,
+                    step=1,
+                    style="max-width: 400px",
+                )
             return card
 
 
 class DataDrawer:
-    def __init__(self, 
-                 drawer, 
-                 state, 
-                 ctrl, 
+    def __init__(self,
+                 drawer,
+                 state,
+                 ctrl,
                  data_storage: DataStorage,
                  width=325):
         self.data_storage: DataStorage = data_storage
@@ -213,17 +216,16 @@ class DataDrawer:
         self.drawer = drawer
         self.drawer.width = 325
         self.ui = self._setup_ui()
-    
 
     def __call__(self, *args, **kwds):
         return self.ui
-    
+
     def _setup_ui(self):
         DataNodesTree(self.state, self.ctrl, self.data_storage)
         vuetify.VDivider(classes="mb-2")
         # Pipeline Cards
-        SurfaceDataPropertyCard(self.state,self.ctrl,self.data_storage)
-        
+        SurfaceDataPropertyCard(self.state, self.ctrl, self.data_storage)
+
         # property_card()
         # grid_card(self.ctrl)
         # topography_card(self.ctrl)
@@ -232,4 +234,3 @@ class DataDrawer:
         # surfaces_card(self.ctrl)
         # points_card(self.ctrl)
         # orientations_card(self.ctrl)
-        
