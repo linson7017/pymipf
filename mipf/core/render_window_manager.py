@@ -4,15 +4,14 @@ class RenderWindowManager:
     """
 
     def __init__(self):
-        self.render_windows = set()
+        self.render_windows = []
 
     def add_renderwindow(self, render_window):
-        self.render_windows.add(render_window)
+        self.render_windows.append(render_window)
         
     def get_activate_renderwindow(self):
         if len(self.render_windows)>0:
-            for render_window in self.render_windows:
-                return render_window
+            return self.render_windows[0]
         else:
             return None
 

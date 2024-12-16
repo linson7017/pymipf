@@ -7,6 +7,7 @@ from vtkmodules.vtkRenderingCore import (
     vtkRenderWindow,
     vtkRenderWindowInteractor,
     vtkPropPicker,
+    vtkCellPicker,
 )
 
 from mipf.core.mapper import *
@@ -54,7 +55,8 @@ class RenderWindow:
         self.vtk_render_window = vtkRenderWindow()
         self.vtk_render_window.OffScreenRenderingOn()
         self.renderer = vtkRenderer()
-        self.picker = vtkPropPicker()
+        #self.picker = vtkPropPicker()
+        self.picker = vtkCellPicker()
         self.vtk_render_window.AddRenderer(self.renderer)
         self.view_type = view_type
         self.direction = direction

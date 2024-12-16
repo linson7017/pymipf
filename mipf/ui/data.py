@@ -82,7 +82,7 @@ class DataNodesTree:
 
     def update(self):
         for node in self.data_storage.nodes.values():
-            color = node.properties["color"]
+            color = node["color"]
             self.pipeline.add_node(
                 node, actions=["delete"]
             )
@@ -100,22 +100,27 @@ class DataNodesTree:
     def _visiblity_changed(self, event):
         for node in self.data_storage.nodes.values():
             if node.id == event.get("id"):
-                node.properties["visible"] = event.get("visible")
+                node["visible"] = event.get("visible")
         render_window_manager.request_update_all()
         self.ctrl.view_update()
 
     def _actives_changed(self, event):
         for node in self.data_storage.nodes.values():
             if node.id in event:
-                node.properties["activate"] = True
+                node["activate"] = True
                 if node.data.type == DataType.Surface:
                     self.state.active_node_type = "surface"
                 elif node.data.type == DataType.Image:
                     self.state.active_node_type = "image"
+                    min,max = node.data.get_image().GetScalarRange()
+                    self.state.update({
+                        "image_min" : min,
+                        "image_max" : max
+                    })
                 else:
                     self.state.active_node_type = None
             else:
-                node.properties["activate"] = False
+                node["activate"] = False
 
     def _setup_ui(self):
         return trame.GitTree(

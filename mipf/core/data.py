@@ -177,6 +177,6 @@ def import_surface_file(filename, data_storage, node_name="undefined", color=[1.
     surface_data = SurfaceData()
     surface_data.read_data(filename)
     surface_node = DataNode(node_name)
-    surface_node.properties["color"] = [1.0, 1.0, 1.0]
+    surface_node["color"] = [1.0, 1.0, 1.0]
     surface_node.set_data(surface_data)
     data_storage.add_node(surface_node)

@@ -144,12 +144,11 @@ def main(server=None, **kwargs):
 
     # Init application
     app = Workbench(server, "MIPF")
-    # app.load(r'E:\test_data\CTA\cta.mha', "cta_image")
+    app.load(r'E:\test_data\CTA\cta.mha', "cta_image")
     app.load(r'E:\test_data\CTA\vessel_smooth.vtp', "vessel_surface")
     pointset = PointSetData()
     pointset.pointset.append([0, 0, 0])
-    pointset_node = DataNode()
-    pointset_node.name = "pointset"
+    pointset_node = DataNode("pointset")
     pointset_node.set_data(pointset)
     app.data_storage.add_node(pointset_node)
 

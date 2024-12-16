@@ -42,20 +42,20 @@ def initialize_binding(server, data_storage):
                 print(f"Load {file.name}")
                 if ".vtp" in file.name:
                     bytes = file.content
-                    surface_data2 = SurfaceData()
-                    surface_data2.read_byte("vtp", bytes)
-                    surface_node2 = DataNode()
-                    surface_node2.properties["color"] = [1.0, 1.0, 1.0]
-                    surface_node2.set_data(surface_data2)
-                    data_storage.add_node(surface_node2)
+                    surface_data = SurfaceData()
+                    surface_data.read_byte("vtp", bytes)
+                    surface_node = DataNode()
+                    surface_node["color"] = [1.0, 1.0, 1.0]
+                    surface_node.set_data(surface_data)
+                    data_storage.add_node(surface_node)
                 elif ".vti" in file.name:
                     bytes = file.content
-                    image_data2 = SurfaceData()
-                    image_data2.read_byte("vti", bytes)
-                    image_node2 = DataNode()
-                    image_node2.properties["color"] = [1.0, 1.0, 1.0]
-                    image_node2.set_data(image_data2)
-                    data_storage.add_node(image_node2)
+                    image_data = SurfaceData()
+                    image_data.read_byte("vti", bytes)
+                    image_node = DataNode()
+                    image_node["color"] = [1.0, 1.0, 1.0]
+                    image_node.set_data(image_data)
+                    data_storage.add_node(image_node)
 
             render_window_manager.request_update_all()
             ctrl.reset_camera()
@@ -75,7 +75,7 @@ def initialize_binding(server, data_storage):
         surface_data2 = SurfaceData()
         surface_data2.read_data(filepath)
         surface_node2 = DataNode()
-        surface_node2.properties["color"] = [1.0, 1.0, 1.0]
+        surface_node2["color"] = [1.0, 1.0, 1.0]
         surface_node2.set_data(surface_data2)
         data_storage.add_node(surface_node2)
 
@@ -143,7 +143,7 @@ def initialize_binding(server, data_storage):
         for node in data_storage.nodes.values():
             if node.data.type == DataType.Surface and node.get("activate"):
                 color = hex_to_float(surface_color)
-                node.properties["color"] = color
+                node["color"] = color
         render_window_manager.request_update_all()
         ctrl.view_update()
 
@@ -159,7 +159,7 @@ def initialize_binding(server, data_storage):
     def update_mesh_representation(current_representation, **kwargs):
         for node in data_storage.nodes.values():
             if node.data.type == DataType.Surface and node.get("activate"):
-                node.properties["representation"] = current_representation
+                node["representation"] = current_representation
         render_window_manager.request_update_all()
         ctrl.view_update()
         

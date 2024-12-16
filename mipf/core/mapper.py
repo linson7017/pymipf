@@ -77,8 +77,9 @@ class MapperBase(ABC):
 
     def _apply_actor_properties(self):
         if self.node and self.get_prop():
-            if "visible" in self.node.properties:
-                self.get_prop().SetVisibility(self.node.properties["visible"])
+            visbile = self.node.get("visible")
+            if visbile:
+                self.get_prop().SetVisibility(visbile)               
 
 
 class SurfaceMapper3D(MapperBase):
@@ -95,26 +96,35 @@ class SurfaceMapper3D(MapperBase):
 
     def _apply_actor_properties(self):
         MapperBase._apply_actor_properties(self)
-        if "opacity" in self.node.properties:
+        opacity = self.node.get("opacity")
+        if opacity:
             self.get_prop().GetProperty().SetOpacity(
-                self.node.properties["opacity"])
-        if "color" in self.node.properties:
-            color = self.node.properties["color"]
+                opacity)
+            
+        color = self.node.get("color")
+        if color:
             self.get_prop().GetProperty().SetColor(
                 color[0], color[1], color[2])
             if len(color) == 4:
                 self.get_prop().GetProperty().SetOpacity(color[3])
-        if "representation" in self.node.properties:
-            representation = self.node.properties["representation"]
+ 
+        representation = self.node.get("representation")
+        if representation:
             update_representation(self.get_prop(), representation)
 
     def generate_data_for_renderer(self, renderer=None):
-        if self.node:
-            data = self.node.get_data()
-            if data and data.type == DataType.Surface:
-                if self.mapper.GetInput() != data.get_polydata():
-                    self.mapper.SetInputData(data.get_polydata())
-                self._apply_actor_properties()
+        if not self.node:
+            return
+        if not self.node.get("visible"):
+            self.get_prop().VisibilityOff()
+            return
+        else:
+            self.get_prop().VisibilityOn()
+        data = self.node.get_data()
+        if data and data.type == DataType.Surface:
+            if self.mapper.GetInput() != data.get_polydata():
+                self.mapper.SetInputData(data.get_polydata())
+            self._apply_actor_properties()
 
 
 class ImageMapper3D(MapperBase):
@@ -159,20 +169,29 @@ class ImageMapper3D(MapperBase):
 
     def _apply_actor_properties(self):
         MapperBase._apply_actor_properties(self)
-        if "color_function" in self.node.properties:
-            self.volume_property.SetColor(
-                self.node.properties["color_function"])
-        if "opacity_function" in self.node.properties:
-            self.volume_property.SetScalarOpacity(
-                self.node.properties["opacity_function"])
+        color_function = self.node.get("color_function")
+        if color_function:
+            self.volume_property.SetColor(color_function)
+            
+        opacity_function = self.node.get("opacity_function")
+        if opacity_function:
+            self.volume_property.SetScalarOpacity(opacity_function)
 
     def generate_data_for_renderer(self, renderer=None):
-        if self.node:
-            data = self.node.get_data()
-            if data and data.type == DataType.Image:
-                if self.mapper.GetInput() != data.get_image():
-                    self.mapper.SetInputData(data.get_image())
-                self._apply_actor_properties()
+        if not self.node:
+            return
+        if not self.node.get("visible"):
+            self.get_prop().VisibilityOff()
+            return
+        else:
+            self.get_prop().VisibilityOn()
+
+        data = self.node.get_data()
+        if data and data.type == DataType.Image:
+            if self.mapper.GetInput() != data.get_image():
+                self.mapper.SetInputData(data.get_image())
+            self._apply_actor_properties()
+
 
 
 class PointSetMapper3D(MapperBase):
@@ -191,35 +210,46 @@ class PointSetMapper3D(MapperBase):
 
     def _apply_actor_properties(self):
         MapperBase._apply_actor_properties(self)
-        if "opacity" in self.node.properties:
+        opacity = self.node.get("opacity")
+        if opacity:
             self.actor.GetProperty().SetOpacity(
-                self.node.properties["opacity"])
-        unselectedcolor = [1.0, 1.0, 0.0,1.0]
-        if "unselectedcolor" in self.node.properties:
-            unselectedcolor = self.node.properties["unselectedcolor"]
+                opacity)
+            
+        unselectedcolor = self.node.get("unselectedcolor")
+        if not unselectedcolor:
+            unselectedcolor = [1.0,1.0,0.0,1.0]
         self.actor.GetProperty().SetColor(
             unselectedcolor[0], unselectedcolor[1], unselectedcolor[2])
         if len(unselectedcolor) == 4:
             self.actor.GetProperty().SetOpacity(unselectedcolor[3])
-        if "representation" in self.node.properties:
-            representation = self.node.properties["representation"]
+              
+        representation = self.node.get("representation")
+        if representation:
             update_representation(self.actor, representation)
 
     def generate_data_for_renderer(self, renderer=None):
-        if self.node:
-            data = self.node.get_data()
-            if data and data.type == DataType.PointSet:
-                if self.mapper.GetInput() != data.get_pointset():
-                    radius = self.node.get("pointsize")
-                    if not radius:
-                        radius = 2.0
-                    appender = vtkAppendPolyData()
-                    for point in data.get_pointset():
-                        sphere_source = vtkSphereSource()
-                        sphere_source.SetCenter(point[0], point[1], point[2])
-                        sphere_source.SetRadius(radius)
-                        sphere_source.Update()
-                        appender.AddInputData(sphere_source.GetOutput())
-                    appender.Update()
-                    self.mapper.SetInputData(appender.GetOutput())
-                self._apply_actor_properties()
+        if not self.node:
+            return
+        if not self.node.get("visible"):
+            self.get_prop().VisibilityOff()
+            return
+        else:
+            self.get_prop().VisibilityOn()
+     
+        data = self.node.get_data()
+        if data and data.type == DataType.PointSet:
+            if self.mapper.GetInput() != data.get_pointset():
+                radius = self.node.get("pointsize")
+                if not radius:
+                    radius = 2.0
+                appender = vtkAppendPolyData()
+                for point in data.get_pointset():
+                    sphere_source = vtkSphereSource()
+                    sphere_source.SetCenter(point[0], point[1], point[2])
+                    sphere_source.SetRadius(radius)
+                    sphere_source.Update()
+                    appender.AddInputData(sphere_source.GetOutput())
+                appender.Update()
+                self.mapper.SetInputData(appender.GetOutput())
+            self._apply_actor_properties()
+    
