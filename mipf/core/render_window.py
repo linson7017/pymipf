@@ -97,8 +97,8 @@ class RenderWindow:
                 mapper = mapper_manager.get_mapper(node,MapperType.Mapper_3D)
                 if not mapper:
                     mapper = self._get_default_mapper3D(node)
-                if mapper:
                     mapper_manager.set_mapper(node, mapper,MapperType.Mapper_3D)
+                if mapper:
                     mapper.generate_data_for_renderer()
                 self.renderer.AddViewProp(mapper.get_prop())
         self.vtk_render_window.Render()

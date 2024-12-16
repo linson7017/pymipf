@@ -1,5 +1,5 @@
 from trame.app import get_server
-from trame.ui.vuetify import SinglePageLayout, SinglePageWithDrawerLayout
+from trame.ui.vuetify import SinglePageLayout, SinglePageWithDrawerLayout, VAppLayout
 from trame.widgets import vuetify, html, trame, vtk as vtk_widgets
 
 
@@ -12,13 +12,21 @@ from mipf.ui.engine import *
 server = get_server(client_type="vue2")
 
 
+def test_func():
+    pass
+
+
 class Workbench:
     def __init__(self, server):
         self.server = server
         self.data_storage = DataStorage()
+        initialize_binding(server, self.data_storage)
         self.state.update(
             {
                 "active_node_type": None,
+                "current_representation": Representation.Surface,
+                "surface_color": "#FFFFFFFF",
+                "current_opacity": 1.0,
                 # picking controls
                 "modes": [
                     {"value": "hover", "icon": "mdi-magnify"},
@@ -32,7 +40,6 @@ class Workbench:
                 "pixel_ratio": 2,
             }
         )
-        initialize_binding(server,self.data_storage)
 
     @property
     def state(self):
@@ -51,9 +58,8 @@ class Workbench:
             import_surface_file(filename, self.data_storage, name)
 
     def setupui(self):
-        render_window = RenderWindow(self.data_storage, ViewType.View3D)
-        render_window.setup()
-
+        self.render_window = RenderWindow(self.data_storage, ViewType.View3D)
+        self.render_window.setup()
         with SinglePageWithDrawerLayout(server) as layout:
             # Toolbar
             with layout.toolbar:
@@ -99,32 +105,33 @@ class Workbench:
                     fluid=True,
                     classes="pa-0 fill-height",
                 ):
-                    # html_view = vtk.VtkRemoteLocalView(render_window.get_vtk_render_window())
+                    # html_view = vtk.VtkRemoteLocalView(self.render_window.get_vtk_render_window())
                     # html_view = vtk.VtkRemoteView(render_window.get_vtk_render_window(),
                     #                               picking_modes=("[pickingMode]",),
                     #                               interactor_settings=("interactorSettings", VIEW_INTERACT),
                     #                               click="pickData = $event",
                     #                               hover="pickData = $event",
                     #                               select="selectData = $event",)
-                    with vtk_widgets.VtkRemoteView(render_window.get_vtk_render_window(),
-                                                   picking_modes=(
-                                                       "[pickingMode]",),
-                                                   interactor_settings=(
-                                                       "interactorSettings", VIEW_INTERACT),
-                                                   click="pickData = $event", ) as html_view:
-                        # html_view = vtk.VtkLocalView(render_window.get_vtk_render_window())
+                    with vtk_widgets.VtkRemoteLocalView(self.render_window.get_vtk_render_window(),
+                                                        picking_modes=(
+                        "[pickingMode]",),
+                        interactor_settings=(
+                        "interactorSettings", VIEW_INTERACT),
+                        click="pickData = $event",
+                    ) as html_view:
+                        #     # html_view = vtk.VtkLocalView(render_window.get_vtk_render_window())
                         self.ctrl.on_server_ready.add(html_view.update)
                         self.ctrl.view_update = html_view.update
                         self.ctrl.reset_camera = html_view.reset_camera
-                        with vtk_widgets.VtkGeometryRepresentation(
-                            id="pointer",
-                            property=("{ color: [1, 0, 0]}",),
-                            actor=("{ visibility: pointerVisibility }",),
-                        ):
-                            vtk_widgets.VtkAlgorithm(
-                                vtk_class="vtkConeSource",
-                                state=("cone", {}),
-                            )
+                        # with vtk_widgets.VtkGeometryRepresentation(
+                        #     id="pointer",
+                        #     property=("{ color: [1, 0, 0]}",),
+                        #     actor=("{ visibility: pointerVisibility }",),
+                        # ):
+                        #     vtk_widgets.VtkAlgorithm(
+                        #         vtk_class="vtkConeSource",
+                        #         state=("cone", {}),
+                        #     )
 
 
 def main(server=None, **kwargs):
@@ -140,9 +147,10 @@ def main(server=None, **kwargs):
 
     # Init application
     app = Workbench(server)
-    app.setupui()
     app.load(r'E:\test_data\CTA\cta.mha', "cta_image")
     app.load(r'E:\test_data\CTA\vessel_smooth.vtp', "vessel_surface")
+
+    app.setupui()
 
     # Start server
     server.start(**kwargs)

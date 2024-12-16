@@ -230,23 +230,6 @@ def standard_buttons(ctrl):
         change=(ctrl.theme_mode, "[$event]"),
     )
 
-# -----------------------------------------------------------------------------
-# Drawer
-# -----------------------------------------------------------------------------
-
-def create_drawer(drawer, ctrl):
-        drawer.width = 325
-        pipeline_widget(ctrl)
-        vuetify.VDivider(classes="mb-2")
-        # Pipeline Cards
-        property_card()
-        grid_card(ctrl)
-        topography_card(ctrl)
-        # Workflow Cards
-        stacks_card(ctrl)
-        surfaces_card(ctrl)
-        points_card(ctrl)
-        orientations_card(ctrl)
 
 # -----------------------------------------------------------------------------
 # Base Card Components
@@ -316,7 +299,7 @@ def ui_pipeline_card(ui_name):
 
 def ui_property_card(node_type):
     card = vuetify.VCard(
-        v_show="active_node_type == '{node_type}'",
+        v_show=f"active_node_type == '{node_type}'",
         classes="ma-1 rounded elevation-8",
     )
     return card

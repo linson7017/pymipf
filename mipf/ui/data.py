@@ -174,7 +174,7 @@ class SurfaceDataPropertyCard:
                 )
             with vuetify.VCol(cols="6"):
                 vuetify.VSlider(
-                    v_model=("current_opacity", 0.2),
+                    v_model=("current_opacity", 1.0),
                     min=0,
                     max=1,
                     step=0.1,

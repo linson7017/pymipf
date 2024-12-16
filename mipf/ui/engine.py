@@ -111,7 +111,7 @@ def initialize_binding(server, data_storage):
     @state.change("surface_color")
     def update_surface_color(surface_color, **kwargs):
         for node in data_storage.nodes.values():
-            if node.data.type == DataType.Surface:
+            if node.data.type == DataType.Surface and node.get("activate"):
                 color = hex_to_float(surface_color)
                 node.properties["color"] = color
         render_window_manager.request_update_all()
@@ -128,7 +128,7 @@ def initialize_binding(server, data_storage):
     @state.change("current_representation")
     def update_mesh_representation(current_representation, **kwargs):
         for node in data_storage.nodes.values():
-            if node.data.type == DataType.Surface:
+            if node.data.type == DataType.Surface and node.get("activate"):
                 node.properties["representation"] = current_representation
         render_window_manager.request_update_all()
         ctrl.view_update()
