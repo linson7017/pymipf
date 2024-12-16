@@ -2,7 +2,9 @@ from trame.app.file_upload import ClientFile
 from tkinter import filedialog
 from mipf.core.data import *
 from mipf.core.render_window_manager import render_window_manager
+from mipf.core.mapper_mananger import mapper_manager
 from mipf.core.render_window import ViewType
+from mipf.core.mapper import *
 
 VIEW_INTERACT = [
         {"button": 1, "action": "Rotate"},
@@ -82,6 +84,7 @@ def initialize_binding(server, data_storage):
 
     @state.change("pickingMode")
     def update_picking_mode(pickingMode, **kwargs):
+        print("Pick model change to ",pickingMode)
         mode = pickingMode
         if mode is None:
             state.update(
@@ -105,8 +108,35 @@ def initialize_binding(server, data_storage):
     @state.change("pickData")
     def update_tooltip(pickData, pixel_ratio, **kwargs):
         data = pickData
-        if data:
-            print(data)
+        if not data:
+            return
+        print(data)
+        mode = data.get("mode")
+        if mode == "remote":
+            sp = data.get("position")
+            if not sp:
+                return 
+            for node in data_storage.nodes.values():
+                if node.data.type == DataType.PointSet:
+                    pointset_data = node.get_data()
+                    render_window = render_window_manager.get_activate_renderwindow()
+                    wp = render_window.pick(sp)
+                    if wp:
+                        pointset_data.pointset[0] = wp  
+            render_window_manager.request_update_all()
+            ctrl.view_update()
+        elif mode == "local":
+            wp = data.get("worldPosition")
+            if not wp:
+                return 
+            for node in data_storage.nodes.values():
+                if node.data.type == DataType.PointSet:
+                    pointset_data = node.get_data()
+                    pointset_data.pointset[0] = wp
+            render_window_manager.request_update_all()
+            ctrl.view_update()
+            
+        
 
     @state.change("surface_color")
     def update_surface_color(surface_color, **kwargs):
@@ -130,5 +160,16 @@ def initialize_binding(server, data_storage):
         for node in data_storage.nodes.values():
             if node.data.type == DataType.Surface and node.get("activate"):
                 node.properties["representation"] = current_representation
+        render_window_manager.request_update_all()
+        ctrl.view_update()
+        
+        
+    @state.change("image_level_window")
+    def update_image_level_window(image_level_window, **kwargs):
+        for node in data_storage.nodes.values():
+            if node.data.type == DataType.Image and node.get("activate"):
+                mapper = mapper_manager.get_mapper(node,MapperType.Mapper_3D)
+                if mapper:
+                    mapper.set_scalar_range(image_level_window)
         render_window_manager.request_update_all()
         ctrl.view_update()

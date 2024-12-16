@@ -2,9 +2,17 @@ from vtkmodules.vtkInteractionStyle import (
     vtkInteractorStyleTrackballCamera,
     vtkInteractorStyleImage
 )
+from vtkmodules.vtkRenderingCore import (
+    vtkRenderer,
+    vtkRenderWindow,
+    vtkRenderWindowInteractor,
+    vtkPropPicker,
+)
+
 from mipf.core.mapper import *
 from mipf.core.data import DataStorage
 from mipf.core.render_window_manager import render_window_manager
+from mipf.core.mapper_mananger import mapper_manager
 
 
 class ViewDirection(Enum):
@@ -46,6 +54,7 @@ class RenderWindow:
         self.vtk_render_window = vtkRenderWindow()
         self.vtk_render_window.OffScreenRenderingOn()
         self.renderer = vtkRenderer()
+        self.picker = vtkPropPicker()
         self.vtk_render_window.AddRenderer(self.renderer)
         self.view_type = view_type
         self.direction = direction
@@ -73,6 +82,13 @@ class RenderWindow:
 
     def set_background_color(self, color):
         self.renderer.SetBackground(color[0], color[1], color[1])
+        
+    def pick(self, position):
+        ret = self.picker.Pick(position.get("x"), position.get("y"), 0, self.renderer)
+        if ret != 0:
+            return self.picker.GetPickPosition()
+        else:
+            return None
 
     def _get_direction_cosines(self):
         if self.direction == ViewDirection.Axial:
@@ -88,8 +104,14 @@ class RenderWindow:
             return SurfaceMapper3D()
         elif data.type.value == DataType.Image.value:
             return ImageMapper3D()
+        elif data.type.value == DataType.PointSet.value:
+            return PointSetMapper3D()
         else:
             raise TypeError("There is not valid mapper for node ", node.name)
+        
+    def reset_view(self, node=None):
+        self.renderer.ResetCamera()
+        self.update()
 
     def update(self):
         for key, node in self.data_storage.nodes.items():
@@ -105,16 +127,16 @@ class RenderWindow:
 
     def setup(self):
         if self.view_type == ViewType.View2D:
-            direction = [1, 0, 0, 0, 1, 0, 0, 0, 1]
-            if self.direction == ViewDirection.Axial:
-                direction = [1, 0, 0, 0, 1, 0, 0, 0, 1]
-            elif self.direction == ViewDirection.Sagittal:
-                direction = [0, 1, 0, 0, 0, 1, 1, 0, 0]
-            elif self.direction == ViewDirection.Coronal:
-                direction = [1, 0, 0, 0, 0, 1, 0, 1, 0]
-
             interactor = vtkRenderWindowInteractor()
             interactor.SetRenderWindow(self.vtk_render_window)
+            
+            # direction = [1, 0, 0, 0, 1, 0, 0, 0, 1]
+            # if self.direction == ViewDirection.Axial:
+            #     direction = [1, 0, 0, 0, 1, 0, 0, 0, 1]
+            # elif self.direction == ViewDirection.Sagittal:
+            #     direction = [0, 1, 0, 0, 0, 1, 1, 0, 0]
+            # elif self.direction == ViewDirection.Coronal:
+            #     direction = [1, 0, 0, 0, 0, 1, 0, 1, 0]
             # interactor_style = SliceScrollInteractorStyle(direction, renderer.GetActors())
             # interactor.SetInteractorStyle(interactor_style)
             self.renderer.ResetCamera()

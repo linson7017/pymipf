@@ -6,12 +6,12 @@ from enum import Enum
 import uuid
 from collections import defaultdict
 from mipf.core.data_manager import data_manager
-from mipf.core.mapper_mananger import mapper_manager
 
 
 class DataType(Enum):
     Image = 1
     Surface = 2
+    PointSet = 3
 
 
 class BaseData(ABC):
@@ -68,6 +68,21 @@ class SurfaceData(BaseData):
 
     def get_polydata(self):
         return self.polydata
+    
+class PointSetData(BaseData):
+    def __init__(self):
+        self.type = DataType.PointSet
+        self.geometry = Geometry()
+        self.pointset = []
+
+    def read_data(self, filename: str):
+        pass
+
+    def read_byte(self, type, intput):
+        pass
+
+    def get_pointset(self):
+        return self.pointset
 
 
 class DataNode:
