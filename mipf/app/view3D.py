@@ -49,9 +49,17 @@ class Workbench:
         if filename.endswith('nii') or filename.endswith('nii.gz') or \
                 filename.endswith('vti') or filename.endswith('mha') or \
                 filename.endswith('nrrd'):
-            import_image_file(filename, self.data_storage, name)
+            node = import_image_file(filename, name)
+            self.data_storage.add_node(node)
+            render_window_manager.request_update_all()
+            self.ctrl.reset_camera()
         elif filename.endswith('vtp') or filename.endswith('stl'):
-            import_surface_file(filename, self.data_storage, name)
+            node = import_surface_file(filename, name)
+            self.data_storage.add_node(node)
+            render_window_manager.request_update_all()
+            self.ctrl.reset_camera()
+        else:
+            print("Not a supported file ",filename)
 
     def setupui(self):
         self.render_window = RenderWindow(self.data_storage, ViewType.View3D)
@@ -73,7 +81,7 @@ class Workbench:
                     dense=True,
                     hide_details=True,
                     style="max-width: 300px;",
-                    accept=".vtp",
+                    accept=".vtp,.vti",
                     __properties=["accept"],
                 )
                 vuetify.VSpacer()
@@ -103,7 +111,7 @@ class Workbench:
                 vuetify.VDivider(classes="mb-2")
                 DataNodesTree(self.state, self.ctrl, self.data_storage)
                 vuetify.VDivider(classes="mb-2")
-                SurfaceDataPropertyCard(
+                DataPropertyCard(
                     self.state, self.ctrl, self.data_storage)
 
             with layout.content:
@@ -144,15 +152,14 @@ def main(server=None, **kwargs):
 
     # Init application
     app = Workbench(server, "MIPF")
-    app.load(r'E:\test_data\CTA\cta.mha', "cta_image")
+    app.setupui()
+    
+     #app.load(r'E:\test_data\CTA\cta.mha', "cta_image")
     app.load(r'E:\test_data\CTA\vessel_smooth.vtp', "vessel_surface")
     pointset = PointSetData()
-    pointset.pointset.append([0, 0, 0])
     pointset_node = DataNode("pointset")
     pointset_node.set_data(pointset)
     app.data_storage.add_node(pointset_node)
-
-    app.setupui()
 
     # Start server
     server.start(**kwargs)

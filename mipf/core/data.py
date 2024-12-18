@@ -68,7 +68,8 @@ class SurfaceData(BaseData):
 
     def get_polydata(self):
         return self.polydata
-    
+
+
 class PointSetData(BaseData):
     def __init__(self):
         self.type = DataType.PointSet
@@ -102,51 +103,85 @@ class DataNode:
 
     def set_data(self, data: BaseData):
         self.data = data
-        data_manager.add_data(data,self.id)
+        data_manager.add_data(data, self.id)
 
     def get_data(self):
         return data_manager.get_data(self.id)
-    
-    def __getitem__(self,key):
+
+    def __getitem__(self, key):
         return self.properties.get(key)
-    
-    def __setitem__(self,key,value):
+
+    def __setitem__(self, key, value):
         self.properties[key] = value
-        
-    def __delitem__(self,key):
+
+    def __delitem__(self, key):
         del self.properties[key]
-        
-    def get(self,key,default=None):
-        return self.properties.get(key,default)
-    
-    def pop(self,key,default=None):
-        self.pop(key,default)
+
+    def get(self, key, default=None):
+        return self.properties.get(key, default)
+
+    def pop(self, key, default=None):
+        self.pop(key, default)
 
 
 class DataStorage:
+    class DataStorageEvent(Enum):
+        ADD_NODE = 0,
+        REMOVE_NODE = 1,
+        # MODIFIED=3
+
     def __init__(self):
         self.nodes: Dict[uuid.UUID, DataNode] = {}
         self.children_map = defaultdict(set)
-        
-    def update(self):
-        pass
+        self._callbacks = {
+            DataStorage.DataStorageEvent.ADD_NODE: [],
+            DataStorage.DataStorageEvent.REMOVE_NODE: [],
+            # DataStorage.DataStorageEvent.MODIFIED: []
+        }
+
+    def trigger_callbacks(self, event_name, *args, **kwargs):
+        if event_name in self._callbacks:
+            for callback in self._callbacks[event_name]:
+                callback(*args, **kwargs)
+
+    def register_callback(self, callback, event_name):
+        if event_name in self._callbacks:
+            if callback not in self._callbacks[event_name]:
+                self._callbacks[event_name].append(callback)
+        else:
+            print("Event {} is not in the callback list {}".format(
+                event_name, self._callbacks.keys()))
+
+    def remove_callback(self, callback):
+        for event_callbacks in self._callbacks.values():
+            if callback in event_callbacks:
+                event_callbacks.remove(callback)
 
     def add_node(self, node: DataNode, parent_node=None, **item_keys):
         _id = node.id
         _parent_id = "0"
         if parent_node:
             _parent_id = parent_node.id
-        node.properties={
-            **node.properties,
-            "parent": _parent_id,
-            **item_keys,
-        }
+        node.properties.update(
+            {
+                "parent": _parent_id,
+                **item_keys,
+            }
+        )
         node.parent = parent_node
         self.nodes[_id] = node
         self._update_hierarchy()
+        self.trigger_callbacks(DataStorage.DataStorageEvent.ADD_NODE,
+                               node, parent_node, **item_keys)
         return _id
-        
-            
+
+    def remove_node(self, _id):
+        for id in self.data_storage.children_map[_id]:
+            self.remove_node(id)
+        self.data_storage.nodes.pop(_id)
+        self.data_storage._update_hierarchy()
+        self.trigger_callbacks(DataStorage.DataStorageEvent.REMOVE_NODE, _id)
+
     def get_node(self, _id):
         return self.nodes.get(f"{_id}")
 
@@ -154,7 +189,7 @@ class DataStorage:
         for node in self.nodes.values():
             if node.name == name:
                 return node
-            
+
     def _update_hierarchy(self):
         self.children_map.clear()
         for node in self.nodes.values():
@@ -162,21 +197,20 @@ class DataStorage:
             if node.parent:
                 _parent_id = node.parent.id
             self.children_map[_parent_id].add(node.id)
-        
-    
 
-def import_image_file(filename, data_storage, node_name="undefined"):
+
+def import_image_file(filename, node_name="undefined"):
     image_data = ImageData()
     image_data.read_data(filename)
     image_node = DataNode(node_name)
     image_node.set_data(image_data)
-    data_storage.add_node(image_node)
+    return image_node
 
 
-def import_surface_file(filename, data_storage, node_name="undefined", color=[1.0, 1.0, 1.0]):
+def import_surface_file(filename, node_name="undefined", color=[1.0, 1.0, 1.0]):
     surface_data = SurfaceData()
     surface_data.read_data(filename)
     surface_node = DataNode(node_name)
     surface_node["color"] = [1.0, 1.0, 1.0]
     surface_node.set_data(surface_data)
-    data_storage.add_node(surface_node)
+    return surface_node

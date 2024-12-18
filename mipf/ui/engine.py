@@ -3,20 +3,22 @@ from tkinter import filedialog
 from mipf.core.data import *
 from mipf.core.render_window_manager import render_window_manager
 from mipf.core.mapper_mananger import mapper_manager
+from mipf.core.pipeline_manager import PipelineManager
 from mipf.core.render_window import ViewType
 from mipf.core.mapper import *
 
 VIEW_INTERACT = [
-        {"button": 1, "action": "Rotate"},
-        {"button": 2, "action": "Pan"},
-        {"button": 3, "action": "Zoom", "scrollEnabled": True},
-        {"button": 1, "action": "Pan", "alt": True},
-        {"button": 1, "action": "Zoom", "control": True},
-        {"button": 1, "action": "Pan", "shift": True},
-        {"button": 1, "action": "Roll", "alt": True, "shift": True},
-    ]
+    {"button": 1, "action": "Rotate"},
+    {"button": 2, "action": "Pan"},
+    {"button": 3, "action": "Zoom", "scrollEnabled": True},
+    {"button": 1, "action": "Pan", "alt": True},
+    {"button": 1, "action": "Zoom", "control": True},
+    {"button": 1, "action": "Pan", "shift": True},
+    {"button": 1, "action": "Roll", "alt": True, "shift": True},
+]
 
 VIEW_SELECT = [{"button": 1, "action": "Select"}]
+
 
 def initialize_binding(server, data_storage):
     state, ctrl = server.state, server.controller
@@ -50,13 +52,12 @@ def initialize_binding(server, data_storage):
                     data_storage.add_node(surface_node)
                 elif ".vti" in file.name:
                     bytes = file.content
-                    image_data = SurfaceData()
+                    image_data = ImageData()
                     image_data.read_byte("vti", bytes)
                     image_node = DataNode()
                     image_node["color"] = [1.0, 1.0, 1.0]
                     image_node.set_data(image_data)
-                    data_storage.add_node(image_node)
-
+                    data_storage.add_node(image_node)          
             render_window_manager.request_update_all()
             ctrl.reset_camera()
 
@@ -84,7 +85,7 @@ def initialize_binding(server, data_storage):
 
     @state.change("pickingMode")
     def update_picking_mode(pickingMode, **kwargs):
-        print("Pick model change to ",pickingMode)
+        print("Pick model change to ", pickingMode)
         mode = pickingMode
         if mode is None:
             state.update(
@@ -115,28 +116,32 @@ def initialize_binding(server, data_storage):
         if mode == "remote":
             sp = data.get("position")
             if not sp:
-                return 
+                return
             for node in data_storage.nodes.values():
                 if node.data.type == DataType.PointSet:
                     pointset_data = node.get_data()
                     render_window = render_window_manager.get_activate_renderwindow()
                     wp = render_window.pick(sp)
                     if wp:
-                        pointset_data.pointset[0] = wp  
+                        if len(pointset_data.get_pointset())>0:
+                            pointset_data.pointset[0] = wp
+                        else:
+                            pointset_data.pointset.append(wp)
             render_window_manager.request_update_all()
             ctrl.view_update()
         elif mode == "local":
             wp = data.get("worldPosition")
             if not wp:
-                return 
+                return
             for node in data_storage.nodes.values():
                 if node.data.type == DataType.PointSet:
                     pointset_data = node.get_data()
-                    pointset_data.pointset[0] = wp
+                    if len(pointset_data.get_pointset())>0:
+                            pointset_data.pointset[0] = wp
+                    else:
+                        pointset_data.pointset.append(wp)
             render_window_manager.request_update_all()
             ctrl.view_update()
-            
-        
 
     @state.change("surface_color")
     def update_surface_color(surface_color, **kwargs):
@@ -162,14 +167,20 @@ def initialize_binding(server, data_storage):
                 node["representation"] = current_representation
         render_window_manager.request_update_all()
         ctrl.view_update()
-        
-        
+
     @state.change("image_level_window")
     def update_image_level_window(image_level_window, **kwargs):
         for node in data_storage.nodes.values():
             if node.data.type == DataType.Image and node.get("activate"):
-                mapper = mapper_manager.get_mapper(node,MapperType.Mapper_3D)
+                mapper = mapper_manager.get_mapper(node, MapperType.Mapper_3D)
                 if mapper:
                     mapper.set_scalar_range(image_level_window)
+        render_window_manager.request_update_all()
+        ctrl.view_update()
+
+    @state.change("pointsize")
+    def update_pointsize(pointsize, **kwargs):
+        for node in data_storage.nodes.values():
+            node["pointsize"] = pointsize
         render_window_manager.request_update_all()
         ctrl.view_update()

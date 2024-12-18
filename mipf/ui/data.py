@@ -6,72 +6,17 @@ from mipf.core.data import DataStorage, DataNode, DataType
 from mipf.core.mapper import Representation
 from mipf.core.render_window_manager import render_window_manager
 from mipf.ui.common import *
-
-
-class PipelineManager:
-    DEFAULT_NODE = {"collapsed": 0}
-
-    def __init__(self, state, name, data_storage):
-        self._state = state
-        self._name = name
-        self.data_storage = data_storage
-
-    def update(self):
-        result = self._add_children([], "0")
-        self._state[self._name] = result
-        return result
-
-    def _add_children(self, list_to_fill, node_id):
-        for child_id in self.data_storage.children_map[node_id]:
-            node = self.data_storage.nodes[child_id]
-            list_to_fill.append(node.properties)
-            if node.get("collapsed"):
-                continue
-            self._add_children(list_to_fill, node.get("id"))
-
-        return list_to_fill
-
-    def add_node(self, node: DataNode, parent_node=None, **item_keys):
-        append_keys = {
-            **PipelineManager.DEFAULT_NODE,
-            **item_keys
-        }
-        _id = self.data_storage.add_node(node, parent_node, **append_keys)
-        self.update()
-        return _id
-
-    def remove_node(self, _id):
-        for id in self.data_storage.children_map[_id]:
-            self.remove_node(id)
-        self.data_storage.nodes.pop(_id)
-        self.data_storage._update_hierarchy()
-        self.update()
-
-    def toggle_collapsed(self, _id, icons=["collapsed", "collapsible"]):
-        node = self.get_node(_id)
-        node["collapsed"] = not node["collapsed"]
-
-        # Toggle matching action icon
-        actions = node.get("actions", [])
-        for i in range(len(actions)):
-            action = actions[i]
-            if action in icons:
-                actions[i] = icons[(icons.index(action) + 1) % 2]
-
-        self.update()
-        return node["collapsed"]
-
-    def toggle_visible(self, _id):
-        node = self.data_storage.get_node(_id)
-        node["visible"] = not node["visible"]
-        self.update()
-        return node["visible"]
+from mipf.core.pipeline_manager import PipelineManager
 
 
 class DataNodesTree:
     def __init__(self, state, ctrl, data_storage: DataStorage):
         self.pipeline = PipelineManager(state, "data_storage", data_storage)
         self.data_storage: DataStorage = data_storage
+        self.data_storage.register_callback(self.pipeline.add_node,
+                                            DataStorage.DataStorageEvent.ADD_NODE)
+        self.data_storage.register_callback(self.pipeline.remove_node,
+                                            DataStorage.DataStorageEvent.REMOVE_NODE)
         self.state = state
         self.ctrl = ctrl
         self.update()
@@ -112,11 +57,13 @@ class DataNodesTree:
                     self.state.active_node_type = "surface"
                 elif node.data.type == DataType.Image:
                     self.state.active_node_type = "image"
-                    min,max = node.data.get_image().GetScalarRange()
+                    min, max = node.data.get_image().GetScalarRange()
                     self.state.update({
-                        "image_min" : min,
-                        "image_max" : max
+                        "image_min": min,
+                        "image_max": max
                     })
+                elif node.data.type == DataType.PointSet:
+                    self.state.active_node_type = "pointset"
                 else:
                     self.state.active_node_type = None
             else:
@@ -133,7 +80,7 @@ class DataNodesTree:
         )
 
 
-class SurfaceDataPropertyCard:
+class DataPropertyCard:
     def __init__(self, state, ctrl, data_storage: DataStorage):
         self.data_storage: DataStorage = data_storage
         self.ctrl = ctrl
@@ -157,55 +104,74 @@ class SurfaceDataPropertyCard:
         vuetify.VSpacer()
 
     def _property_card_text(self):
-            vuetify.VSelect(
-                v_model=("current_representation", Representation.Surface),
-                items=(
-                    "representations",
-                    [
-                        {"text": "Points", "value": 0},
-                        {"text": "Wireframe", "value": 1},
-                        {"text": "Surface", "value": 2},
-                        {"text": "SurfaceWithEdges", "value": 3},
-                    ],
-                ),
-                label="Representation",
-                hide_details=True,
-                dense=True,
-                outlined=True,
-                classes="pt-1",
-            )
-            vuetify.VColorPicker(mode='rgba', v_model=(
-                "surface_color", "#FFFFFFFF"))
+        vuetify.VSelect(
+            v_model=("current_representation", Representation.Surface),
+            items=(
+                "representations",
+                [
+                    {"text": "Points", "value": 0},
+                    {"text": "Wireframe", "value": 1},
+                    {"text": "Surface", "value": 2},
+                    {"text": "SurfaceWithEdges", "value": 3},
+                ],
+            ),
+            label="Representation",
+            hide_details=True,
+            dense=True,
+            outlined=True,
+            classes="pt-1",
+        )
+        vuetify.VColorPicker(mode='rgba', v_model=(
+            "surface_color", "#FFFFFFFF"))
 
     def _setup_ui(self):
-        with ui_property_card("surface") as card:
-            card_title = self._property_card_title(
-                title="Properties",
-                ui_icon="mdi-tools",
-            )
-            with ui_card_text() as card_text:
-                self._property_card_text()
-            with ui_card_actions() as card_actions:
-                self._property_card_actions()
-        with ui_property_card("image") as card:
-            card_title = self._property_card_title(
-                title="Properties",
-                ui_icon="mdi-tools",
-            )
-            with ui_card_text() as card_text:
-                vuetify.VRangeSlider(
-                    thumb_size=16,
-                    thumb_label="always",
-                    label="Window",
-                    v_model=("image_level_window", [100, 2000]),
-                    min=("image_min", -2000),
-                    max=("image_max", 4000),
-                    dense=True,
-                    hide_details=True,
-                    step=1,
-                    style="max-width: 400px",
+        with vuetify.VContainer() as ui:
+            with ui_property_card("surface"):
+                card_title = self._property_card_title(
+                    title="Properties",
+                    ui_icon="mdi-tools",
                 )
-            return card
+                with ui_card_text() as card_text:
+                    self._property_card_text()
+                with ui_card_actions() as card_actions:
+                    self._property_card_actions()
+            with ui_property_card("image"):
+                card_title = self._property_card_title(
+                    title="Properties",
+                    ui_icon="mdi-tools",
+                )
+                with ui_card_text() as card_text:
+                    vuetify.VRangeSlider(
+                        thumb_size=16,
+                        thumb_label="always",
+                        label="Window",
+                        v_model=("image_level_window", [100, 2000]),
+                        min=("image_min", -2000),
+                        max=("image_max", 4000),
+                        dense=True,
+                        hide_details=True,
+                        step=1,
+                        style="max-width: 400px",
+                    )
+            with ui_property_card("pointset"):
+                card_title = self._property_card_title(
+                    title="Properties",
+                    ui_icon="mdi-tools",
+                )
+                with ui_card_text() as card_text:
+                    vuetify.VSlider(
+                        thumb_size=16,
+                        thumb_label="always",
+                        label="Point Size",
+                        v_model=("pointsize", 2.0),
+                        min=("pointsize_min", 0.1),
+                        max=("pointsize_max", 10),
+                        dense=True,
+                        hide_details=True,
+                        step=0.1,
+                        style="max-width: 400px",
+                    )
+        return ui
 
 
 class DataDrawer:

@@ -108,9 +108,8 @@ class SurfaceMapper3D(MapperBase):
             if len(color) == 4:
                 self.get_prop().GetProperty().SetOpacity(color[3])
  
-        representation = self.node.get("representation")
-        if representation:
-            update_representation(self.get_prop(), representation)
+        if "representation" in self.node.properties:
+            update_representation(self.get_prop(), self.node.get("representation"))
 
     def generate_data_for_renderer(self, renderer=None):
         if not self.node:
@@ -199,7 +198,11 @@ class PointSetMapper3D(MapperBase):
         MapperBase.__init__(self)
 
     def get_prop(self):
-        return self.assembly
+        data = self.node.get_data()
+        if len(data.pointset)>0:
+            return self.assembly
+        else:
+            return None
 
     def initialize_mapper(self):
         self.assembly = vtkPropAssembly()
@@ -230,13 +233,17 @@ class PointSetMapper3D(MapperBase):
     def generate_data_for_renderer(self, renderer=None):
         if not self.node:
             return
+        
+        data = self.node.get_data()
+        if len(data.get_pointset())==0:
+            return
+        
         if not self.node.get("visible"):
-            self.get_prop().VisibilityOff()
+            self.actor.VisibilityOff()
             return
         else:
-            self.get_prop().VisibilityOn()
+            self.actor.VisibilityOn()
      
-        data = self.node.get_data()
         if data and data.type == DataType.PointSet:
             if self.mapper.GetInput() != data.get_pointset():
                 radius = self.node.get("pointsize")
@@ -247,9 +254,7 @@ class PointSetMapper3D(MapperBase):
                     sphere_source = vtkSphereSource()
                     sphere_source.SetCenter(point[0], point[1], point[2])
                     sphere_source.SetRadius(radius)
-                    sphere_source.Update()
-                    appender.AddInputData(sphere_source.GetOutput())
-                appender.Update()
-                self.mapper.SetInputData(appender.GetOutput())
+                    appender.AddInputConnection(sphere_source.GetOutputPort())
+                self.mapper.SetInputConnection(appender.GetOutputPort())
             self._apply_actor_properties()
     
