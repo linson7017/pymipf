@@ -58,3 +58,17 @@ def hex_to_float(hex_color):
     else:
         raise ValueError(
             "Invalid hex color format. Expected #RRGGBB or #RRGGBBAA.")
+        
+def float_to_hex(float_color):
+    if len(float_color)==3:
+        float_color += [1.0]
+    if len(float_color)==4:
+        r, g, b, a = float_color
+        r = int(r * 255)
+        g = int(g * 255)
+        b = int(b * 255)
+        a = int(a * 255)
+        hex_color = f'#{r:02X}{g:02X}{b:02X}{a:02X}'
+        return hex_color
+    else:
+        raise ValueError("Color should be rgb or rgba format!")

@@ -7,6 +7,7 @@ from mipf.core.mapper import Representation
 from mipf.core.render_window_manager import render_window_manager
 from mipf.ui.common import *
 from mipf.core.pipeline_manager import PipelineManager
+from mipf.core.utils import float_to_hex
 
 
 class DataNodesTree:
@@ -55,6 +56,9 @@ class DataNodesTree:
                 node["activate"] = True
                 if node.data.type == DataType.Surface:
                     self.state.active_node_type = "surface"
+                    self.state.surface_color = float_to_hex(node["color"])
+                    if node.get("representation"):
+                        self.state.current_representation = node["representation"]
                 elif node.data.type == DataType.Image:
                     self.state.active_node_type = "image"
                     min, max = node.data.get_image().GetScalarRange()
@@ -64,6 +68,7 @@ class DataNodesTree:
                     })
                 elif node.data.type == DataType.PointSet:
                     self.state.active_node_type = "pointset"
+                    self.state.pointsize = node["pointsize"]
                 else:
                     self.state.active_node_type = None
             else:

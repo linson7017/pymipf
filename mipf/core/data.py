@@ -92,7 +92,7 @@ class DataNode:
         self.id = uuid.uuid4().hex
         self.properties = {
             "visible": True,
-            "color": [1, 1, 1],
+            "color": [1, 1, 1, 1],
             "opacity": 1.0,
             "activate": False,
             "name": self.name,
@@ -116,6 +116,9 @@ class DataNode:
 
     def __delitem__(self, key):
         del self.properties[key]
+        
+    def update(self, items:Dict):
+        self.properties.update(items)
 
     def get(self, key, default=None):
         return self.properties.get(key, default)
@@ -207,10 +210,9 @@ def import_image_file(filename, node_name="undefined"):
     return image_node
 
 
-def import_surface_file(filename, node_name="undefined", color=[1.0, 1.0, 1.0]):
+def import_surface_file(filename, node_name="undefined"):
     surface_data = SurfaceData()
     surface_data.read_data(filename)
     surface_node = DataNode(node_name)
-    surface_node["color"] = [1.0, 1.0, 1.0]
     surface_node.set_data(surface_data)
     return surface_node

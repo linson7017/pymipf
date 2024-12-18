@@ -88,6 +88,10 @@ class SurfaceMapper3D(MapperBase):
 
     def get_prop(self):
         return self.actor
+    
+    def set_node(self,node):
+        MapperBase.set_node(self,node)
+        node["representation"] = Representation.Surface
 
     def initialize_mapper(self):
         self.mapper = vtkPolyDataMapper()
@@ -203,6 +207,10 @@ class PointSetMapper3D(MapperBase):
             return self.assembly
         else:
             return None
+        
+    def set_node(self,node):
+        MapperBase.set_node(self,node)
+        node["pointsize"] = 2.0
 
     def initialize_mapper(self):
         self.assembly = vtkPropAssembly()

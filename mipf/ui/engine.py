@@ -48,6 +48,7 @@ def initialize_binding(server, data_storage):
                     surface_data.read_byte("vtp", bytes)
                     surface_node = DataNode()
                     surface_node["color"] = [1.0, 1.0, 1.0]
+                    surface_node["name"] = file.name
                     surface_node.set_data(surface_data)
                     data_storage.add_node(surface_node)
                 elif ".vti" in file.name:
@@ -56,6 +57,7 @@ def initialize_binding(server, data_storage):
                     image_data.read_byte("vti", bytes)
                     image_node = DataNode()
                     image_node["color"] = [1.0, 1.0, 1.0]
+                    image_node["name"] = file.name
                     image_node.set_data(image_data)
                     data_storage.add_node(image_node)          
             render_window_manager.request_update_all()
