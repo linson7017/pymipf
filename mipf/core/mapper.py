@@ -13,7 +13,8 @@ from vtkmodules.vtkFiltersSources import (
 )
 
 from vtkmodules.vtkFiltersCore import (
-    vtkAppendPolyData
+    vtkAppendPolyData,
+    vtkPolyDataNormals
 )
 
 from vtkmodules.vtkRenderingVolumeOpenGL2 import vtkSmartVolumeMapper
@@ -126,6 +127,9 @@ class SurfaceMapper3D(MapperBase):
         data = self.node.get_data()
         if data and data.type == DataType.Surface:
             if self.mapper.GetInput() != data.get_polydata():
+                #normals = vtkPolyDataNormals()
+                #normals.SetInputData(data.get_polydata())
+                #self.mapper.SetInputConnection(normals)
                 self.mapper.SetInputData(data.get_polydata())
             self._apply_actor_properties()
 
@@ -160,6 +164,7 @@ class ImageMapper3D(MapperBase):
         self.volume = vtkVolume()
         self.volume.SetMapper(self.mapper)
         self.volume.SetProperty(self.volume_property)
+        self.volume
 
     def set_scalar_range(self, range):
         opacity_function = self.volume_property.GetScalarOpacity()
@@ -188,13 +193,26 @@ class ImageMapper3D(MapperBase):
             return
         else:
             self.get_prop().VisibilityOn()
+            
+        scalar_opacity = self.node.get("scalar_opacity")
+        if scalar_opacity:
+            opacity_function = self.volume_property.GetScalarOpacity()
+            opacity_function.RemoveAllPoints()
+            for scalar,opacity in scalar_opacity:
+                opacity_function.AddPoint(scalar, opacity)
+        
+        colors = self.node.get("colors")
+        if colors:
+            color_function = vtkColorTransferFunction()
+            for color in colors:
+                color_function.AddRGBPoint(color[0], color[1], color[2], color[3])    
+            self.volume_property.SetColor(color_function) 
 
         data = self.node.get_data()
         if data and data.type == DataType.Image:
             if self.mapper.GetInput() != data.get_image():
                 self.mapper.SetInputData(data.get_image())
             self._apply_actor_properties()
-
 
 
 class PointSetMapper3D(MapperBase):
@@ -262,7 +280,8 @@ class PointSetMapper3D(MapperBase):
                     sphere_source = vtkSphereSource()
                     sphere_source.SetCenter(point[0], point[1], point[2])
                     sphere_source.SetRadius(radius)
-                    appender.AddInputConnection(sphere_source.GetOutputPort())
-                self.mapper.SetInputConnection(appender.GetOutputPort())
+                   # appender.AddInputConnection(sphere_source.GetOutputPort())
+                    self.mapper.SetInputConnection(sphere_source.GetOutputPort())
+                #self.mapper.SetInputConnection(appender.GetOutputPort())
             self._apply_actor_properties()
     

@@ -118,7 +118,7 @@ class DataNode:
         del self.properties[key]
         
     def update(self, items:Dict):
-        self.properties.update(items)
+        self.properties.update(Dict)
 
     def get(self, key, default=None):
         return self.properties.get(key, default)
@@ -131,7 +131,7 @@ class DataStorage:
     class DataStorageEvent(Enum):
         ADD_NODE = 0,
         REMOVE_NODE = 1,
-        # MODIFIED=3
+        MODIFIED_NODE=3
 
     def __init__(self):
         self.nodes: Dict[uuid.UUID, DataNode] = {}
@@ -139,7 +139,7 @@ class DataStorage:
         self._callbacks = {
             DataStorage.DataStorageEvent.ADD_NODE: [],
             DataStorage.DataStorageEvent.REMOVE_NODE: [],
-            # DataStorage.DataStorageEvent.MODIFIED: []
+            DataStorage.DataStorageEvent.MODIFIED_NODE: []
         }
 
     def trigger_callbacks(self, event_name, *args, **kwargs):
@@ -184,6 +184,9 @@ class DataStorage:
         self.data_storage.nodes.pop(_id)
         self.data_storage._update_hierarchy()
         self.trigger_callbacks(DataStorage.DataStorageEvent.REMOVE_NODE, _id)
+        
+    def modefied(self, _id):
+        self.trigger_callbacks(DataStorage.DataStorageEvent.MODIFIED_NODE, _id)
 
     def get_node(self, _id):
         return self.nodes.get(f"{_id}")

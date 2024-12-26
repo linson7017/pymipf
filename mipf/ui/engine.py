@@ -20,8 +20,10 @@ VIEW_INTERACT = [
 VIEW_SELECT = [{"button": 1, "action": "Select"}]
 
 
-def initialize_binding(server, data_storage):
+def initialize_binding(server, data_storage,**kwargs):
     state, ctrl = server.state, server.controller
+    plotter = kwargs["plotter"]
+    
 
     @state.change("files")
     def load_client_files(files, **kwargs):
@@ -84,6 +86,23 @@ def initialize_binding(server, data_storage):
 
         render_window_manager.request_update_all()
         ctrl.reset_camera()
+        
+    @ctrl.set("before_scene_loaded")
+    def before_scene_loaded():
+        print("before_scene_loaded")
+        
+    @ctrl.set("after_scene_loaded")
+    def after_scene_loaded():
+        print("after_scene_loaded")
+        
+    @ctrl.set("on_ready2")
+    def on_ready2():
+        print("on_ready2")
+        
+    @ctrl.set("captura_screen")
+    def captura_screen(name,event):
+        print("captura_screen")
+       #utils.download(name, event)
 
     @state.change("pickingMode")
     def update_picking_mode(pickingMode, **kwargs):
@@ -186,3 +205,13 @@ def initialize_binding(server, data_storage):
             node["pointsize"] = pointsize
         render_window_manager.request_update_all()
         ctrl.view_update()
+
+
+    if plotter:
+        @state.change("show_axes_widget")
+        def toggle_axes_widget(show_axes_widget, **kwargs):
+            if show_axes_widget:
+                plotter.renderer.show_axes()
+            else:
+                plotter.renderer.hide_axes()
+            ctrl.view_update()

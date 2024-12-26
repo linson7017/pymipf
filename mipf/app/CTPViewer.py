@@ -10,6 +10,11 @@ from mipf.ui.data import *
 from mipf.ui.engine import *
 
 server = get_server(client_type="vue2")
+state = server.state
+
+
+def init_scene(*args, **kwargs):
+    print("exec_function", args, kwargs)
 
 
 class Workbench:
@@ -61,17 +66,71 @@ class Workbench:
             self.ctrl.reset_camera()
             self.ctrl.view_update()
         else:
-            print("Not a supported file ",filename)
+            print("Not a supported file ", filename)
 
     def setupui(self):
         use_plotter = False
-        self.render_window = RenderWindow(self.data_storage, 
+        self.render_window = RenderWindow(self.data_storage,
                                           ViewType.View3D, use_plotter=use_plotter)
-        self.render_window.set_background_color([0,0,0])
+        self.render_window.set_background_color([0, 0, 0])
         self.render_window.setup()
-        
-        initialize_binding(server, self.data_storage, plotter = self.render_window.get_plotter())
-        state= server.state
+
+        initialize_binding(server, self.data_storage,
+                           plotter=self.render_window.get_plotter())
+        state = server.state
+        ctrl = server.controller
+        data_storage = self.data_storage
+
+        @state.change("current_vessel")
+        def update_current_vessel(current_vessel, **kwargs):
+            for node in data_storage.nodes.values():
+                if "vessel_" in node['name']:
+                    index = node["name"].split("_")[1]
+                    index = index.split(".")[0]
+                    if current_vessel == int(index):
+                        node['visible'] = True
+                    else:
+                        node['visible'] = False
+            data_storage.modefied(0)
+            render_window_manager.request_update_all()
+            ctrl.view_update()
+
+        @ctrl.set("init_scene")
+        def init_scene():
+            number = 0
+            for node in data_storage.nodes.values():
+                if "vessel" in node['name']:
+                    number += 1
+            state.vessel_number = number-1
+            state.current_vessel = 0
+
+        @state.change("tf_files")
+        def load_tf_files(tf_files, **kwargs):
+            if tf_files is None or len(tf_files) == 0:
+                return
+
+            field = "solid"
+            fields = {
+                "solid": {"value": "solid", "text": "Solid color", "range": [0, 1]},
+            }
+            meshes = []
+            filesOutput = []
+            if tf_files and len(tf_files):
+                if not tf_files[0].get("content"):
+                    return
+                for file in tf_files:
+                    file = ClientFile(file)
+                    print(f"Load {file.name}")
+                    scalar_opacity, gradient_opacity, color = extract_tf(
+                        file.content)
+
+                    for node in data_storage.nodes.values():
+                        if node.data.type == DataType.Image and node.get("activate"):
+                            node["scalar_opacity"] = scalar_opacity
+                            node["gradient_opacity"] = gradient_opacity
+                            node["colors"] = color
+                    render_window_manager.request_update_all()
+                    ctrl.view_update()
 
         with SinglePageWithDrawerLayout(server) as layout:
             # Toolbar
@@ -90,6 +149,20 @@ class Workbench:
                     accept=".vtp,.vti",
                     __properties=["accept"],
                 )
+
+                vuetify.VFileInput(
+                    multiple=True,
+                    show_size=True,
+                    small_chips=True,
+                    truncate_length=25,
+                    v_model=("tf_files", None),
+                    dense=True,
+                    hide_details=True,
+                    style="max-width: 300px;",
+                    accept=".xml",
+                    __properties=["accept"],
+                )
+
                 vuetify.VSpacer()
                 with vuetify.VBtn(icon=True, click=self.ctrl.view_capture_image):
                     vuetify.VIcon("mdi-camera-outline")
@@ -99,7 +172,7 @@ class Workbench:
                         vuetify.VIcon("{{item.icon}}")
                 vuetify.VSpacer()
                 vuetify.VBtn("Reset Camera", click=self.ctrl.reset_camera)
-                vuetify.VSpacer() 
+                vuetify.VSpacer()
                 with vuetify.VMenu():
                     with vuetify.Template(v_slot_activator="{ on, attrs }"):
                         with vuetify.VBtn(text="Control", icon=True, v_bind="attrs", v_on="on"):
@@ -107,13 +180,13 @@ class Workbench:
                     with vuetify.VList():
                         with vuetify.VListItem():
                             vuetify.VSwitch(
-                                    label="Dark Theme",
-                                    v_model="$vuetify.theme.dark",
-                                )
+                                label="Dark Theme",
+                                v_model="$vuetify.theme.dark",
+                            )
                         with vuetify.VListItem():
                             vuetify.VSwitch(label="Axes",
-                                    v_model=("show_axes_widget",True),
-                                )
+                                            v_model=("show_axes_widget", True),
+                                            )
                         with vuetify.VListItem():
                             vuetify.VSwitch(label="Depth Peeling",
                                             v_model=("depth_peeling", True))
@@ -128,6 +201,19 @@ class Workbench:
                 drawer.width = 325
                 vuetify.VDivider(classes="mb-2")
                 DataNodesTree(self.state, self.ctrl, self.data_storage)
+                vuetify.VDivider(classes="mb-2")
+                vuetify.VBtn(
+                    "Init",
+                    click=init_scene
+                )
+                vuetify.VSlider(
+                    hide_details=True,
+                    v_model=("current_vessel", 0),
+                    max=("vessel_number", 0),
+                    min=0,
+                    step=1,
+                    style="max-width: 300px;",
+                )
                 vuetify.VDivider(classes="mb-2")
                 DataPropertyCard(
                     self.state, self.ctrl, self.data_storage)
@@ -145,33 +231,35 @@ class Workbench:
                     #                               hover="pickData = $event",
                     #                               select="selectData = $event",)
                     with vtk_widgets.VtkRemoteView(self.render_window.get_vtk_render_window(),
-                                                        picking_modes=(
+                                                   picking_modes=(
                         "[pickingMode]",),
                         interactor_settings=(
                         "interactorSettings", VIEW_INTERACT),
                         click="pickData = $event",
                         on_remote_image_capture="utils.download('remote.png', $event)",
-                        on_local_image_capture=(self.ctrl.captura_screen,"['local.png', $event]"),
+                        on_local_image_capture=(
+                            self.ctrl.captura_screen, "['local.png', $event]"),
                         # interactive_quality = 1.0,
                         # interactive_ratio = 1.0,
                         # still_ratio = 1.0,
                         # still_quality = 100,
                         on_ready=self.ctrl.on_ready2,
-                        
+
                     ) as html_view:
                         #     # html_view = vtk.VtkLocalView(render_window.get_vtk_render_window())
                         self.ctrl.on_server_ready.add(html_view.update)
                         self.ctrl.view_update = html_view.update
                         self.ctrl.reset_camera = html_view.reset_camera
                         self.ctrl.view_capture_image = html_view.capture_image
-                        
+
                         # self.ctrl.before_scene_loaded=html_view.before_scene_loaded
                         # self.ctrl.after_scene_loaded=html_view.after_scene_loaded
-                        #self.state.viewMode = "local"      
-                          
+                        # self.state.viewMode = "local"
+
                         if use_plotter:
-                            self.ctrl.view_widgets_set = html_view.set_widgets              
-                            html_view.set_widgets([self.render_window.plotter.renderer.axes_widget])
+                            self.ctrl.view_widgets_set = html_view.set_widgets
+                            html_view.set_widgets(
+                                [self.render_window.plotter.renderer.axes_widget])
 
 
 def main(server=None, **kwargs):
@@ -188,13 +276,7 @@ def main(server=None, **kwargs):
     # Init application
     app = Workbench(server, "MIPF")
     app.setupui()
-    
-    app.load(r'E:\test_data\CTA\cta.mha', "cta_image")
-    app.load(r'E:\test_data\CTA\vessel_smooth.vtp', "vessel_surface")
-    pointset = PointSetData()
-    pointset_node = DataNode("pointset")
-    pointset_node.set_data(pointset)
-    app.data_storage.add_node(pointset_node)
+    # app.load(r'E:\test_data\CTA\vessel_smooth.vtp', "vessel_surface")
 
     # Start server
     server.start(**kwargs)

@@ -50,14 +50,25 @@ class RenderWindow:
     def __init__(self,
                  data_storage: DataStorage,
                  view_type: ViewType = ViewType.View3D,
-                 direction: ViewDirection = ViewDirection.Axial
-                 ):
-        self.vtk_render_window = vtkRenderWindow()
-        self.vtk_render_window.OffScreenRenderingOn()
-        self.renderer = vtkRenderer()
+                 direction: ViewDirection = ViewDirection.Axial,
+                 use_plotter: bool = False
+                 ): 
+        if not use_plotter:
+            self.vtk_render_window = vtkRenderWindow()
+            self.renderer = vtkRenderer()
+            self.vtk_render_window.AddRenderer(self.renderer)
+            self.vtk_render_window.OffScreenRenderingOn()
+            self.plotter = None
+        else:
+            import pyvista as pv
+            self.plotter = pv.Plotter(off_screen=True)
+            self.vtk_render_window = self.plotter.render_window
+            self.renderer = self.plotter.renderer
+            self.plotter.add_axes()
+            #self.plotter.add_box_axes()
+            
         #self.picker = vtkPropPicker()
         self.picker = vtkCellPicker()
-        self.vtk_render_window.AddRenderer(self.renderer)
         self.view_type = view_type
         self.direction = direction
         self.data_storage = data_storage
@@ -75,6 +86,9 @@ class RenderWindow:
 
     def get_active_camera(self):
         return self.renderer.GetActiveCamera()
+    
+    def get_plotter(self):
+        return self.plotter
 
     def set_view_direction(self, view_direction: ViewDirection):
         self.direction = view_direction
@@ -83,7 +97,10 @@ class RenderWindow:
         self.view_type = view_type
 
     def set_background_color(self, color):
-        self.renderer.SetBackground(color[0], color[1], color[1])
+        if not self.plotter:
+            self.renderer.SetBackground(color[0], color[1], color[1])
+        else:
+            self.renderer.set_background(color)
         
     def pick(self, position):
         ret = self.picker.Pick(position.get("x"), position.get("y"), 0, self.renderer)

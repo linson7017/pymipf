@@ -1,12 +1,17 @@
 from mipf.core.data import DataNode, DataStorage
 
+
 class PipelineManager:
-    DEFAULT_NODE = {"collapsed": 0}
+    DEFAULT_NODE = {
+        "collapsed": 0,
+        "actions": ["delete"]
+    }
 
     def __init__(self, state, name, data_storage):
         self._state = state
         self._name = name
         self.data_storage = data_storage
+        self.update()
 
     def update(self):
         result = self._add_children([], "0")
@@ -35,7 +40,9 @@ class PipelineManager:
         return node["id"]
 
     def remove_node(self, _id):
+        self.update()
         
+    def modified_node(self, _id):
         self.update()
 
     def toggle_collapsed(self, _id, icons=["collapsed", "collapsible"]):

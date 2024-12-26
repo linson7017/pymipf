@@ -6,13 +6,6 @@ from trame.assets.local import LocalFileManager
 
 BASE = Path(__file__).parent
 local_file_manager = LocalFileManager(__file__)
-local_file_manager.url("test", BASE / "resources/icons/abacus.svg")
-local_file_manager.url("delete", BASE / "resources/icons/trash-can-outline.svg")
-local_file_manager.url("collapsed", BASE / "resources/icons/chevron-up.svg")
-local_file_manager.url("collapsible", BASE /"resources/icons/chevron-down.svg")
-
-
-PIPELINE_ICONS = local_file_manager.assets
 
 
 # -----------------------------------------------------------------------------

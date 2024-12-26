@@ -72,3 +72,35 @@ def float_to_hex(float_color):
         return hex_color
     else:
         raise ValueError("Color should be rgb or rgba format!")
+    
+def extract_tf(xml_data):
+    import xml.etree.ElementTree as ET 
+    # 解析 XML 字符串
+    root = ET.fromstring(xml_data)
+
+    # 提取 ScalarOpacity 中的点
+    scalar_opacity = []
+    for point in root.find('ScalarOpacity').iter('point'):
+        x = float(point.get('x'))
+        y = float(point.get('y'))
+        scalar_opacity.append((x, y))
+
+    # 提取 GradientOpacity 中的点
+    gradient_opacity = []
+    for point in root.find('GradientOpacity').iter('point'):
+        x = float(point.get('x'))
+        y = float(point.get('y'))
+        gradient_opacity.append((x, y))
+
+    # 提取 Color 中的点
+    color = []
+    for point in root.find('Color').iter('point'):
+        x = float(point.get('x'))
+        r = float(point.get('r'))
+        g = float(point.get('g'))
+        b = float(point.get('b'))
+        midpoint = float(point.get('midpoint'))
+        sharpness = float(point.get('sharpness'))
+        color.append((x, r, g, b, midpoint, sharpness))
+    
+    return scalar_opacity,gradient_opacity,color
