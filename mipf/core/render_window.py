@@ -51,7 +51,7 @@ class RenderWindow:
                  data_storage: DataStorage,
                  view_type: ViewType = ViewType.View3D,
                  direction: ViewDirection = ViewDirection.Axial,
-                 use_plotter: bool = False
+                 use_plotter: bool = False,
                  ): 
         if not use_plotter:
             self.vtk_render_window = vtkRenderWindow()
@@ -109,14 +109,16 @@ class RenderWindow:
         else:
             return None
 
-    def _get_direction_cosines(self):
+    def _get_direction_matrix(self):
         if self.direction == ViewDirection.Axial:
-            return [1, 0, 0, 0, 1, 0, 0, 0, 1]
+            return ResliceMatrix.Axial_Matrix
         elif self.direction == ViewDirection.Sagittal:
-            return [0, 1, 0, 0, 0, 1, 1, 0, 0]
+            return ResliceMatrix.Sagittal_Matrix
         elif self.direction == ViewDirection.Coronal:
-            return [1, 0, 0, 0, 0, 1, 0, 1, 0]
-
+            return ResliceMatrix.Coronal_Matrix
+        else:
+            raise ValueError(f"Invalid direction {self.direction}!")
+        
     def _get_default_mapper3D(self, node):
         data = node.get_data()
         if data.type.value == DataType.Surface.value:
@@ -126,7 +128,18 @@ class RenderWindow:
         elif data.type.value == DataType.PointSet.value:
             return PointSetMapper3D()
         else:
-            raise TypeError("There is not valid mapper for node ", node.name)
+            raise TypeError("There is not valid mapper for node ", node.get("name"))
+        
+    def _get_default_mapper2D(self, node):
+        data = node.get_data()
+        if data.type.value == DataType.Surface.value:
+            return None  #not support yet
+        elif data.type.value == DataType.Image.value:
+            return  ImageMapper2D()
+        elif data.type.value == DataType.PointSet.value:
+            return None  #not support yet
+        else:
+            raise TypeError("There is not valid mapper for node ", node.get("name"))
         
     def reset_view(self, node=None):
         self.renderer.ResetCamera()
@@ -140,24 +153,23 @@ class RenderWindow:
                     mapper = self._get_default_mapper3D(node)
                     mapper_manager.set_mapper(node, mapper,MapperType.Mapper_3D)
                 if mapper:
-                    mapper.generate_data_for_renderer()
-                self.renderer.AddViewProp(mapper.get_prop())
+                    mapper.generate_data_for_renderer(self.renderer)
+                self.renderer.AddViewProp(mapper.get_prop(self.renderer))
+            elif self.view_type == ViewType.View2D:
+                mapper = mapper_manager.get_mapper(node,MapperType.Mapper_2D)
+                if not mapper:
+                    mapper = self._get_default_mapper2D(node)
+                    mapper_manager.set_mapper(node, mapper,MapperType.Mapper_2D)
+                if mapper:
+                    mapper.set_reslice_matrix(self._get_direction_matrix(),self.renderer)
+                    mapper.generate_data_for_renderer(self.renderer)
+                self.renderer.AddViewProp(mapper.get_prop(self.renderer))
         self.vtk_render_window.Render()
 
     def setup(self):
         if self.view_type == ViewType.View2D:
             interactor = vtkRenderWindowInteractor()
             interactor.SetRenderWindow(self.vtk_render_window)
-            
-            # direction = [1, 0, 0, 0, 1, 0, 0, 0, 1]
-            # if self.direction == ViewDirection.Axial:
-            #     direction = [1, 0, 0, 0, 1, 0, 0, 0, 1]
-            # elif self.direction == ViewDirection.Sagittal:
-            #     direction = [0, 1, 0, 0, 0, 1, 1, 0, 0]
-            # elif self.direction == ViewDirection.Coronal:
-            #     direction = [1, 0, 0, 0, 0, 1, 0, 1, 0]
-            # interactor_style = SliceScrollInteractorStyle(direction, renderer.GetActors())
-            # interactor.SetInteractorStyle(interactor_style)
             self.renderer.ResetCamera()
         else:
             trackball_style = vtkInteractorStyleTrackballCamera()

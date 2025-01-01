@@ -38,14 +38,14 @@ class DataNodesTree:
 
     def _visiblity_changed(self, event):
         for node in self.data_storage.nodes.values():
-            if node.id == event.get("id"):
+            if node.get("id") == event.get("id"):
                 node["visible"] = event.get("visible")
         render_window_manager.request_update_all()
         self.ctrl.view_update()
 
     def _actives_changed(self, event):
         for node in self.data_storage.nodes.values():
-            if node.id in event:
+            if node.get("id") in event:
                 node["activate"] = True
                 if node.data.type == DataType.Surface:
                     self.state.active_node_type = "surface"
@@ -62,6 +62,8 @@ class DataNodesTree:
                 elif node.data.type == DataType.PointSet:
                     self.state.active_node_type = "pointset"
                     self.state.pointsize = node["pointsize"]
+                    pointset = node.data
+                    self.state.points_info = pointset.to_list()
                 else:
                     self.state.active_node_type = None
             else:
@@ -174,4 +176,12 @@ class DataPropertyCard:
                         step=0.1,
                         style="max-width: 400px",
                     )
+                    
+                    table = {
+                        "headers": ("headers", [{"text":"id","value":"id"},{"text":"position_x","value":"position_x"},{"text":"position_y","value":"position_y"},{"text":"position_z","value":"position_z"}]),
+                        "items": ("points_info", [{"id":0,"position_x":0,"position_y":0,"position_z":0}]),  
+                        "hide_default_footer":True,
+                        "table_layout":"fixed"         
+                    }
+                    vuetify.VDataTable(**table)
         return ui

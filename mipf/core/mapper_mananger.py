@@ -11,12 +11,12 @@ class MapperManager:
         self._next_id=0
         
     def set_mapper(self, node, mapper, mapper_type):
-        self.mappers[node.id][mapper_type] = mapper
+        self.mappers[node.get("id")][mapper_type] = mapper
         mapper.set_node(node)
 
 
     def get_mapper(self, node, mapper_type):
-        node_mapper = self.mappers.get(node.id)
+        node_mapper = self.mappers.get(node.get("id"))
         if node_mapper:
             return node_mapper.get(mapper_type)
         else:

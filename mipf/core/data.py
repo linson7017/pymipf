@@ -18,10 +18,10 @@ class BaseData(ABC):
     def __init__(self):
         self.type: DataType = None
         self.name = ""
-        self.geometry: Geometry = None
+        self._geometry: Geometry = None
 
     def get_geometry(self):
-        return self.geometry
+        return self._geometry
 
     @abstractmethod
     def read_data(self, filename: str):
@@ -31,11 +31,11 @@ class BaseData(ABC):
 class ImageData(BaseData):
     def __init__(self):
         self.type = DataType.Image
-        self.geometry = Geometry()
-        self.image = None
+        self._geometry = Geometry()
+        self._image = None
 
     def read_data(self, filename: str):
-        self.image = load_image(filename)
+        self._image = load_image(filename)
 
     def read_byte(self, type, intput):
         if type == "vti":
@@ -43,20 +43,20 @@ class ImageData(BaseData):
             reader.SetInputString(intput)
             reader.SetReadFromInputString(True)
             reader.Update()
-            self.image = reader.GetOutput()
+            self._image = reader.GetOutput()
 
     def get_image(self):
-        return self.image
+        return self._image
 
 
 class SurfaceData(BaseData):
     def __init__(self):
         self.type = DataType.Surface
-        self.geometry = Geometry()
-        self.polydata = None
+        self._geometry = Geometry()
+        self._polydata = None
 
     def read_data(self, filename: str):
-        self.polydata = load_surface(filename)
+        self._polydata = load_surface(filename)
 
     def read_byte(self, type, intput):
         if type == "vtp":
@@ -64,17 +64,17 @@ class SurfaceData(BaseData):
             reader.SetInputString(intput)
             reader.SetReadFromInputString(True)
             reader.Update()
-            self.polydata = reader.GetOutput()
+            self._polydata = reader.GetOutput()
 
     def get_polydata(self):
-        return self.polydata
+        return self._polydata
 
 
 class PointSetData(BaseData):
     def __init__(self):
         self.type = DataType.PointSet
         self.geometry = Geometry()
-        self.pointset = []
+        self._pointset = []
 
     def read_data(self, filename: str):
         pass
@@ -83,30 +83,61 @@ class PointSetData(BaseData):
         pass
 
     def get_pointset(self):
-        return self.pointset
+        return self._pointset
+    
+    def get_point(self,index):
+        if index<len(self._pointset):
+            return self._pointset[index]
+        raise ValueError("{} is out of range!".format(index))
+    
+    def set_point(self,index,point):
+        if index<len(self._pointset):
+            self._pointset[index] = point
+        else:
+            raise ValueError("{} is out of range!".format(index))
+        
+    def add_point(self,point):
+        self._pointset.append(point)
+        
+    def clear(self):
+        self._pointset.clear()
+        
+    def __iter__(self):
+        return iter(self._pointset)
+    
+    def to_list(self):
+        results = []
+        for i in range(len(self._pointset)):
+            result = {}
+            result["id"] = i
+            p = self._pointset[i]
+            result["position_x"] = p[0]
+            result["position_y"] = p[1]
+            result["position_z"] = p[2]
+            result["position"] = p
+            results.append(result)
+        return results
 
 
 class DataNode:
     def __init__(self, name="undefined"):
-        self.name = name
-        self.id = uuid.uuid4().hex
         self.properties = {
             "visible": True,
             "color": [1, 1, 1, 1],
             "opacity": 1.0,
             "activate": False,
-            "name": self.name,
-            "id": self.id
+            "name": name,
+            "id": uuid.uuid4().hex
         }
         self.parent = None
         self.mappers = {}
 
     def set_data(self, data: BaseData):
         self.data = data
-        data_manager.add_data(data, self.id)
+        data_manager.add_data(data, self.get("id"))
 
     def get_data(self):
-        return data_manager.get_data(self.id)
+        return data_manager.get_data(self.get("id"))
 
     def __getitem__(self, key):
         return self.properties.get(key)
@@ -161,10 +192,10 @@ class DataStorage:
                 event_callbacks.remove(callback)
 
     def add_node(self, node: DataNode, parent_node=None, **item_keys):
-        _id = node.id
+        _id = node.get("id")
         _parent_id = "0"
         if parent_node:
-            _parent_id = parent_node.id
+            _parent_id = parent_node.get("id")
         node.properties.update(
             {
                 "parent": _parent_id,
@@ -193,7 +224,7 @@ class DataStorage:
 
     def get_named_node(self, name: str):
         for node in self.nodes.values():
-            if node.name == name:
+            if node.get("name") == name:
                 return node
 
     def _update_hierarchy(self):
@@ -202,7 +233,7 @@ class DataStorage:
             _parent_id = "0"
             if node.parent:
                 _parent_id = node.parent.id
-            self.children_map[_parent_id].add(node.id)
+            self.children_map[_parent_id].add(node.get("id"))
 
 
 def import_image_file(filename, node_name="undefined"):

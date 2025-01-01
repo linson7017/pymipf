@@ -22,7 +22,7 @@ VIEW_SELECT = [{"button": 1, "action": "Select"}]
 
 def initialize_binding(server, data_storage,**kwargs):
     state, ctrl = server.state, server.controller
-    plotter = kwargs["plotter"]
+    plotter = kwargs.get("plotter")
     
 
     @state.change("files")
@@ -145,9 +145,11 @@ def initialize_binding(server, data_storage,**kwargs):
                     wp = render_window.pick(sp)
                     if wp:
                         if len(pointset_data.get_pointset())>0:
-                            pointset_data.pointset[0] = wp
+                            pointset_data.set_point(0,wp)
                         else:
-                            pointset_data.pointset.append(wp)
+                            pointset_data.add_point(wp)
+                        if node.get("activate"):
+                            state.points_info = pointset_data.to_list()
             render_window_manager.request_update_all()
             ctrl.view_update()
         elif mode == "local":
@@ -158,9 +160,11 @@ def initialize_binding(server, data_storage,**kwargs):
                 if node.data.type == DataType.PointSet:
                     pointset_data = node.get_data()
                     if len(pointset_data.get_pointset())>0:
-                            pointset_data.pointset[0] = wp
+                            pointset_data.set_point(0,wp)
                     else:
-                        pointset_data.pointset.append(wp)
+                        pointset_data.add_point(wp)
+                    if node.get("activate"):
+                        state.points_info = pointset_data.to_list()
             render_window_manager.request_update_all()
             ctrl.view_update()
 
@@ -193,9 +197,12 @@ def initialize_binding(server, data_storage,**kwargs):
     def update_image_level_window(image_level_window, **kwargs):
         for node in data_storage.nodes.values():
             if node.data.type == DataType.Image and node.get("activate"):
-                mapper = mapper_manager.get_mapper(node, MapperType.Mapper_3D)
-                if mapper:
-                    mapper.set_scalar_range(image_level_window)
+                scalar_opacity = []
+                scalar_opacity.append((image_level_window[0], 0.0))
+                scalar_opacity.append((image_level_window[0]+50, 0.2))
+                scalar_opacity.append((image_level_window[0]+100, 0.8))
+                scalar_opacity.append((image_level_window[1], 1.0))
+                node["scalar_opacity"] = scalar_opacity
         render_window_manager.request_update_all()
         ctrl.view_update()
 

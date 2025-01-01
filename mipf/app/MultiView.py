@@ -9,16 +9,8 @@ from mipf.core.utils import *
 from mipf.ui.data import *
 from mipf.ui.engine import *
 
-
-from trame_vtk.modules.vtk.widget import WidgetManager
-from vtkmodules.vtkInteractionWidgets import vtkImplicitPlaneWidget2
-
 server = get_server(client_type="vue2")
 state = server.state
-
-
-def init_scene(*args, **kwargs):
-    print("exec_function", args, kwargs)
 
 
 class Workbench:
@@ -45,6 +37,7 @@ class Workbench:
                 "pixel_ratio": 2,
             }
         )
+        self.render_windows = []
 
     @property
     def state(self):
@@ -74,70 +67,27 @@ class Workbench:
 
     def setupui(self):
         use_plotter = False
-        self.render_window = RenderWindow(self.data_storage,
-                                          ViewType.View3D, use_plotter=use_plotter)
-        self.render_window.set_background_color([0, 0, 0])
-        self.render_window.setup()
-                
-        
+        self.rendow_rendows = {
+            "Axial":RenderWindow(self.data_storage,ViewType.View2D,ViewDirection.Axial),
+            "Sagittal":RenderWindow(self.data_storage,ViewType.View2D,ViewDirection.Sagittal),
+            "Coronal":RenderWindow(self.data_storage,ViewType.View2D,ViewDirection.Coronal),
+            "3D":RenderWindow(self.data_storage,ViewType.View3D)
+        }  
+        colors = {
+            "Axial":"#FF0000",
+            "Sagittal":"#00FF00",
+            "Coronal":"#0000FF",
+            "3D":"#FFFF00"
+        }
+        for render_window in self.rendow_rendows.values():
+            render_window.setup()
+                  
 
-        initialize_binding(server, self.data_storage,
-                           plotter=self.render_window.get_plotter())
+        initialize_binding(server, self.data_storage)
         state = server.state
         ctrl = server.controller
         data_storage = self.data_storage
-
-        @state.change("current_vessel")
-        def update_current_vessel(current_vessel, **kwargs):
-            for node in data_storage.nodes.values():
-                if "vessel_" in node['name']:
-                    index = node["name"].split("_")[1]
-                    index = index.split(".")[0]
-                    if index.isdigit():
-                        if current_vessel == int(index):
-                            node['visible'] = True
-                        else:
-                            node['visible'] = False
-            data_storage.modefied(0)
-            render_window_manager.request_update_all()
-            ctrl.view_update()
-
-        @ctrl.set("init_scene")
-        def init_scene():
-            number = 0
-            for node in data_storage.nodes.values():
-                if "vessel" in node['name']:
-                    number += 1
-            state.vessel_number = number-1
-            state.current_vessel = 0
-
-        @state.change("tf_files")
-        def load_tf_files(tf_files, **kwargs):
-            if tf_files is None or len(tf_files) == 0:
-                return
-
-            field = "solid"
-            fields = {
-                "solid": {"value": "solid", "text": "Solid color", "range": [0, 1]},
-            }
-            meshes = []
-            filesOutput = []
-            if tf_files and len(tf_files):
-                if not tf_files[0].get("content"):
-                    return
-                for file in tf_files:
-                    file = ClientFile(file)
-                    print(f"Load {file.name}")
-                    scalar_opacity, gradient_opacity, color = extract_tf(
-                        file.content)
-
-                    for node in data_storage.nodes.values():
-                        if node.data.type == DataType.Image and node.get("activate"):
-                            node["scalar_opacity"] = scalar_opacity
-                            node["gradient_opacity"] = gradient_opacity
-                            node["colors"] = color
-                    render_window_manager.request_update_all()
-                    ctrl.view_update()
+        
 
         with SinglePageWithDrawerLayout(server) as layout:
             # Toolbar
@@ -209,18 +159,7 @@ class Workbench:
                 vuetify.VDivider(classes="mb-2")
                 DataNodesTree(self.state, self.ctrl, self.data_storage)
                 vuetify.VDivider(classes="mb-2")
-                vuetify.VBtn(
-                    "Init",
-                    click=init_scene
-                )
-                vuetify.VSlider(
-                    hide_details=True,
-                    v_model=("current_vessel", 0),
-                    max=("vessel_number", 0),
-                    min=0,
-                    step=1,
-                    style="max-width: 300px;",
-                )
+               
                 vuetify.VDivider(classes="mb-2")
                 DataPropertyCard(
                     self.state, self.ctrl, self.data_storage)
@@ -229,44 +168,27 @@ class Workbench:
                 with vuetify.VContainer(
                     fluid=True,
                     classes="pa-0 fill-height",
+                    style="display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;",
                 ):
-                    # html_view = vtk.VtkRemoteLocalView(self.render_window.get_vtk_render_window())
-                    # html_view = vtk.VtkRemoteView(render_window.get_vtk_render_window(),
-                    #                               picking_modes=("[pickingMode]",),
-                    #                               interactor_settings=("interactorSettings", VIEW_INTERACT),
-                    #                               click="pickData = $event",
-                    #                               hover="pickData = $event",
-                    #                               select="selectData = $event",)
-                    with vtk_widgets.VtkRemoteView(self.render_window.get_vtk_render_window(),
-                                                   picking_modes=(
-                        "[pickingMode]",),
-                        interactor_settings=(
-                        "interactorSettings", VIEW_INTERACT),
-                        click="pickData = $event",
-                        on_remote_image_capture="utils.download('remote.png', $event)",
-                        on_local_image_capture=(
-                            self.ctrl.captura_screen, "['local.png', $event]"),
-                        # interactive_quality = 1.0,
-                        # interactive_ratio = 1.0,
-                        # still_ratio = 1.0,
-                        # still_quality = 100,
-                        on_ready=self.ctrl.on_ready2,
-
-                    ) as html_view:
-                        #     # html_view = vtk.VtkLocalView(render_window.get_vtk_render_window())
-                        self.ctrl.on_server_ready.add(html_view.update)
-                        self.ctrl.view_update = html_view.update
-                        self.ctrl.reset_camera = html_view.reset_camera
-                        self.ctrl.view_capture_image = html_view.capture_image
-
-                        # self.ctrl.before_scene_loaded=html_view.before_scene_loaded
-                        # self.ctrl.after_scene_loaded=html_view.after_scene_loaded
-                        # self.state.viewMode = "local"
-
-                        if use_plotter:
-                            self.ctrl.view_widgets_set = html_view.set_widgets
-                            html_view.set_widgets(
-                                [self.render_window.plotter.renderer.axes_widget])
+                    for name,renderwindow in self.rendow_rendows.items():
+                        with html.Div(
+                            style=f"height: 100%;justify-self: stretch; border:2px solid; borderColor:{colors[name]}",
+                            click=f"active_view = '{name}'",
+                        ) as renderwindow_container:
+                            render_window = renderwindow.get_vtk_render_window()
+                            with vtk_widgets.VtkRemoteLocalView(
+                                render_window,ref=f"view_{name}") as html_view:
+                                
+                                self.ctrl.on_server_ready.add(html_view.update)
+                                self.ctrl[f"view_{name}_capture_image"].add(html_view.capture_image)
+                                
+                                self.ctrl.view_update.add(html_view.update)
+                                self.ctrl.reset_camera.add(html_view.reset_camera)
+                                
+                                if use_plotter:
+                                    self.ctrl.view_widgets_set = html_view.set_widgets
+                                    html_view.set_widgets(
+                                        [self.render_window.plotter.renderer.axes_widget])
 
 
 def main(server=None, **kwargs):
@@ -284,12 +206,13 @@ def main(server=None, **kwargs):
     app = Workbench(server, "MIPF")
     app.setupui()
     
+    app.load(r'D:\ncct.nii', "ncct")
     #app.load(r'E:\test_data\CTA\cta.mha', "cta_image")
-    app.load(r'E:\test_data\CTA\vessel_smooth.vtp', "vessel_surface")
-    pointset = PointSetData()
-    pointset_node = DataNode("pointset")
-    pointset_node.set_data(pointset)
-    app.data_storage.add_node(pointset_node)
+    # app.load(r'E:\test_data\CTA\vessel_smooth.vtp', "vessel_surface")
+    # pointset = PointSetData()
+    # pointset_node = DataNode("pointset")
+    # pointset_node.set_data(pointset)
+    # app.data_storage.add_node(pointset_node)
 
     # Start server
     server.start(**kwargs)
