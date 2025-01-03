@@ -103,6 +103,16 @@ def initialize_binding(server, data_storage,**kwargs):
     def captura_screen(name,event):
         print("captura_screen")
        #utils.download(name, event)
+       
+    
+    @state.change("viewLayout")
+    def update_picking_mode(viewLayout, **kwargs):
+        print("View Layout change to ", viewLayout)
+        if viewLayout == "FourViews":
+            state.layout_style="display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;width: 100%;height: 100%;"
+        else:
+            state.layout_style="display:flex;align-items: center;justify-content: center;width: 100%;height: 100%;"
+        
 
     @state.change("pickingMode")
     def update_picking_mode(pickingMode, **kwargs):

@@ -30,11 +30,20 @@ class Workbench:
                     {"value": "click", "icon": "mdi-cursor-default-click-outline"},
                     {"value": "select", "icon": "mdi-select-drag"},
                 ],
+                #View Layouts
+                "layouts":[
+                    {"value":"FourViews","icon":"mdi-view-grid"},
+                    {"value":"Axial","icon":"mdi-numeric-1-box"},
+                    {"value":"Sagittal","icon":"mdi-numeric-2-box"},
+                    {"value":"Coronal","icon":"mdi-numeric-3-box"},
+                    {"value":"3D","icon":"mdi-numeric-4-box"},
+                ],
                 # Picking feedback
                 "pickData": None,
                 "selectData": None,
                 "tooltip": "",
                 "pixel_ratio": 2,
+                "layout_style":"display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;width: 100%;height: 100%;"
             }
         )
         self.render_windows = []
@@ -124,6 +133,10 @@ class Workbench:
                 with vuetify.VBtn(icon=True, click=self.ctrl.view_capture_image):
                     vuetify.VIcon("mdi-camera-outline")
                 vuetify.VSpacer()
+                with vuetify.VBtnToggle(v_model=("viewLayout", "FourViews"), dense=True):
+                    with vuetify.VBtn(value=("item.value",), v_for="item, idx in layouts"):
+                        vuetify.VIcon("{{item.icon}}")
+                vuetify.VSpacer()
                 with vuetify.VBtnToggle(v_model=("pickingMode", "hover"), dense=True):
                     with vuetify.VBtn(value=("item.value",), v_for="item, idx in modes"):
                         vuetify.VIcon("{{item.icon}}")
@@ -168,22 +181,25 @@ class Workbench:
                 with vuetify.VContainer(
                     fluid=True,
                     classes="pa-0 fill-height",
-                    style="display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;",
+                    style=("layout_style",""),
                 ):
                     for name,renderwindow in self.rendow_rendows.items():
                         with html.Div(
-                            style=f"height: 100%;justify-self: stretch; border:2px solid; borderColor:{colors[name]}",
+                            style=f"height:100%;width:100%;justify-self: stretch; border:2px solid; borderColor:{colors[name]};",
                             click=f"active_view = '{name}'",
+                            v_show=f"viewLayout == '{name}' || viewLayout == 'FourViews'"
                         ) as renderwindow_container:
                             render_window = renderwindow.get_vtk_render_window()
                             with vtk_widgets.VtkRemoteLocalView(
-                                render_window,ref=f"view_{name}") as html_view:
-                                
+                                render_window, ref=f"view_{name}",   
+                                ) as html_view:
                                 self.ctrl.on_server_ready.add(html_view.update)
                                 self.ctrl[f"view_{name}_capture_image"].add(html_view.capture_image)
                                 
                                 self.ctrl.view_update.add(html_view.update)
-                                self.ctrl.reset_camera.add(html_view.reset_camera)
+                                #self.ctrl.reset_camera.add(html_view.reset_camera)
+                                self.ctrl.reset_camera.add(renderwindow.reset_camera)
+                                self.ctrl.reset_camera.add(html_view.update)
                                 
                                 if use_plotter:
                                     self.ctrl.view_widgets_set = html_view.set_widgets
@@ -206,8 +222,8 @@ def main(server=None, **kwargs):
     app = Workbench(server, "MIPF")
     app.setupui()
     
-    app.load(r'D:\ncct.nii', "ncct")
-    #app.load(r'E:\test_data\CTA\cta.mha', "cta_image")
+    #app.load(r'D:\ncct.nii', "ncct")
+    app.load(r'E:\test_data\CTA\cta.mha', "cta_image")
     # app.load(r'E:\test_data\CTA\vessel_smooth.vtp', "vessel_surface")
     # pointset = PointSetData()
     # pointset_node = DataNode("pointset")

@@ -7,6 +7,15 @@ import uuid
 from collections import defaultdict
 from mipf.core.data_manager import data_manager
 
+from vtkmodules.vtkCommonCore import (
+    vtkPoints
+)
+from vtkmodules.vtkCommonDataModel import (
+    vtkImageData,
+    vtkPolyData,
+    vtkPointSet
+)
+
 
 class DataType(Enum):
     Image = 1
@@ -24,6 +33,10 @@ class BaseData(ABC):
         return self._geometry
 
     @abstractmethod
+    def get_bounds(self):
+        pass
+
+    @abstractmethod
     def read_data(self, filename: str):
         pass
 
@@ -32,7 +45,7 @@ class ImageData(BaseData):
     def __init__(self):
         self.type = DataType.Image
         self._geometry = Geometry()
-        self._image = None
+        self._image: vtkImageData = None
 
     def read_data(self, filename: str):
         self._image = load_image(filename)
@@ -48,15 +61,27 @@ class ImageData(BaseData):
     def get_image(self):
         return self._image
 
+    def get_bounds(self):
+        return self._image.GetBounds()
+
+    def get_center(self):
+        return self._image.GetCenter()
+
 
 class SurfaceData(BaseData):
     def __init__(self):
         self.type = DataType.Surface
         self._geometry = Geometry()
-        self._polydata = None
+        self._polydata: vtkPolyData = None
 
     def read_data(self, filename: str):
         self._polydata = load_surface(filename)
+
+    def get_bounds(self):
+        return self._polydata.GetBounds()
+
+    def get_center(self):
+        return self._polydata.GetCenter()
 
     def read_byte(self, type, intput):
         if type == "vtp":
@@ -74,7 +99,7 @@ class PointSetData(BaseData):
     def __init__(self):
         self.type = DataType.PointSet
         self.geometry = Geometry()
-        self._pointset = []
+        self._pointset: vtkPoints = vtkPoints()
 
     def read_data(self, filename: str):
         pass
@@ -84,30 +109,27 @@ class PointSetData(BaseData):
 
     def get_pointset(self):
         return self._pointset
-    
-    def get_point(self,index):
-        if index<len(self._pointset):
-            return self._pointset[index]
+
+    def get_point(self, index):
+        if index < len(self._pointset.GetNumberOfPoints()):
+            return self._pointset.GetPoint(index)
         raise ValueError("{} is out of range!".format(index))
-    
-    def set_point(self,index,point):
-        if index<len(self._pointset):
-            self._pointset[index] = point
+
+    def set_point(self, index, point):
+        if index < len(self._pointset):
+            self._pointset.SetPoint(index, point)
         else:
             raise ValueError("{} is out of range!".format(index))
-        
-    def add_point(self,point):
-        self._pointset.append(point)
-        
+
+    def add_point(self, point):
+        self._pointset.InsertNextPoint(point)
+
     def clear(self):
-        self._pointset.clear()
-        
-    def __iter__(self):
-        return iter(self._pointset)
-    
+        self._pointset.Reset()
+
     def to_list(self):
         results = []
-        for i in range(len(self._pointset)):
+        for i in range(self._pointset.GetNumberOfPoints()):
             result = {}
             result["id"] = i
             p = self._pointset[i]
@@ -117,6 +139,15 @@ class PointSetData(BaseData):
             result["position"] = p
             results.append(result)
         return results
+
+    def get_bounds(self):
+        return self._pointset.GetBounds()
+
+    def get_center(self):
+        bounds = self._pointset.GetBounds()
+        return [(bounds[0]+bounds[1])*0.5,
+                (bounds[2]+bounds[3])*0.5,
+                (bounds[4]+bounds[5])*0.5,]
 
 
 class DataNode:
@@ -147,8 +178,8 @@ class DataNode:
 
     def __delitem__(self, key):
         del self.properties[key]
-        
-    def update(self, items:Dict):
+
+    def update(self, items: Dict):
         self.properties.update(Dict)
 
     def get(self, key, default=None):
@@ -162,7 +193,7 @@ class DataStorage:
     class DataStorageEvent(Enum):
         ADD_NODE = 0,
         REMOVE_NODE = 1,
-        MODIFIED_NODE=3
+        MODIFIED_NODE = 3
 
     def __init__(self):
         self.nodes: Dict[uuid.UUID, DataNode] = {}
@@ -215,7 +246,7 @@ class DataStorage:
         self.data_storage.nodes.pop(_id)
         self.data_storage._update_hierarchy()
         self.trigger_callbacks(DataStorage.DataStorageEvent.REMOVE_NODE, _id)
-        
+
     def modefied(self, _id):
         self.trigger_callbacks(DataStorage.DataStorageEvent.MODIFIED_NODE, _id)
 
@@ -234,6 +265,22 @@ class DataStorage:
             if node.parent:
                 _parent_id = node.parent.id
             self.children_map[_parent_id].add(node.get("id"))
+
+    def get_bounds(self):
+        bounds_list = []
+        for node in self.nodes.values():
+            if node.get("visible"):
+                bounds_list.append(node.get_data().get_bounds())
+        return bounds_union(*bounds_list)    
+    
+    def get_center(self):
+        bounds = self.get_bounds()
+        center=[0,0,0]
+        center[0] = (bounds[0]+bounds[1])*0.5
+        center[1] = (bounds[2]+bounds[3])*0.5
+        center[2] = (bounds[4]+bounds[5])*0.5
+        return center     
+
 
 
 def import_image_file(filename, node_name="undefined"):

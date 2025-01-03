@@ -104,3 +104,21 @@ def extract_tf(xml_data):
         color.append((x, r, g, b, midpoint, sharpness))
     
     return scalar_opacity,gradient_opacity,color
+
+
+def bounds_union(*bounds_list):
+    vinf = float("inf")
+    xmin, xmax = vinf, -vinf
+    ymin, ymax = vinf, -vinf
+    zmin, zmax = vinf, -vinf
+
+    # 遍历所有 bounds 并计算并集
+    for bounds in bounds_list:
+        xmin = min(xmin, bounds[0])
+        xmax = max(xmax, bounds[1])
+        ymin = min(ymin, bounds[2])
+        ymax = max(ymax, bounds[3])
+        zmin = min(zmin, bounds[4])
+        zmax = max(zmax, bounds[5])
+
+    return (xmin, xmax, ymin, ymax, zmin, zmax)

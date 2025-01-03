@@ -8,6 +8,7 @@ from vtkmodules.vtkRenderingCore import (
     vtkRenderWindowInteractor,
     vtkPropPicker,
     vtkCellPicker,
+    vtkCamera
 )
 
 from mipf.core.mapper import *
@@ -26,21 +27,32 @@ class ViewType(Enum):
     View2D = 1
     View3D = 2
 
-
-class SliceScrollInteractorStyle(vtkInteractorStyleImage):
-    def __init__(self, orientation, actors):
+ 
+class ImageInteractor2D(vtkInteractorStyleImage):
+    def __init__(self, orientation, render_window):
         self.orientation = orientation
+        self.render_window = render_window
+        self.actions = {}
+        self.actions["Slicing"] = 0   
+        self.step_size = 1.0   
         self.AddObserver("MouseWheelForwardEvent", self.on_scroll_forward)
         self.AddObserver("MouseWheelBackwardEvent", self.on_scroll_backward)
 
     def on_scroll_forward(self, obj, event):
-        # update_slice(self.orientation, 1)
-        print("on_scroll_forward")
+        self.update_slice(self.orientation, 1)
 
     def on_scroll_backward(self, obj, event):
-        # update_slice(self.orientation, -1)
-        print("on_scroll_backward")
+        self.update_slice(self.orientation, -1)
 
+    def update_slice(self,orientation,step):
+        if self.orientation == ViewDirection.Axial:
+            self.render_window.shift[2] += step*self.step_size
+        elif self.orientation == ViewDirection.Sagittal:
+            self.render_window.shift[0] += step*self.step_size
+        elif self.orientation == ViewDirection.Coronal:
+            self.render_window.shift[1] += step*self.step_size
+        
+        self.render_window.update()
 
 class RenderWindow:
     """
@@ -72,19 +84,20 @@ class RenderWindow:
         self.view_type = view_type
         self.direction = direction
         self.data_storage = data_storage
+        self.shift = [0,0,0]
 
         render_window_manager.add_renderwindow(self)
 
-    def get_renderer(self):
+    def get_renderer(self)->vtkRenderer:
         return self.renderer
 
     def set_depth_peeling(self, flag):
         self.renderer.SetUseDepthPeeling(flag)
 
-    def get_vtk_render_window(self):
+    def get_vtk_render_window(self)->vtkRenderWindow:
         return self.vtk_render_window
 
-    def get_active_camera(self):
+    def get_active_camera(self)->vtkCamera:
         return self.renderer.GetActiveCamera()
     
     def get_plotter(self):
@@ -110,14 +123,20 @@ class RenderWindow:
             return None
 
     def _get_direction_matrix(self):
+        matrix = None
         if self.direction == ViewDirection.Axial:
-            return ResliceMatrix.Axial_Matrix
+            matrix = ResliceMatrix.Axial_Matrix
         elif self.direction == ViewDirection.Sagittal:
-            return ResliceMatrix.Sagittal_Matrix
+            matrix = ResliceMatrix.Sagittal_Matrix
         elif self.direction == ViewDirection.Coronal:
-            return ResliceMatrix.Coronal_Matrix
+            matrix = ResliceMatrix.Coronal_Matrix
         else:
             raise ValueError(f"Invalid direction {self.direction}!")
+        
+        matrix[3]=self.shift[0]
+        matrix[7]=self.shift[1]
+        matrix[11]=self.shift[2]
+        return matrix
         
     def _get_default_mapper3D(self, node):
         data = node.get_data()
@@ -141,9 +160,26 @@ class RenderWindow:
         else:
             raise TypeError("There is not valid mapper for node ", node.get("name"))
         
-    def reset_view(self, node=None):
-        self.renderer.ResetCamera()
-        self.update()
+    def reset_camera(self, node=None):
+        if self.view_type == ViewType.View3D:
+            self.renderer.ResetCamera()
+            self.vtk_render_window.Render()
+        else:
+            self.renderer.ResetCamera()
+            camera = self.get_active_camera()
+            bounds = self.data_storage.get_bounds()
+            center = self.data_storage.get_center()
+
+            if self.direction == ViewDirection.Axial:
+                camera.SetParallelScale((bounds[3] - bounds[2]) / 2)
+                self.shift[2] = center[2]
+            elif self.direction == ViewDirection.Sagittal:
+                camera.SetParallelScale((bounds[5] - bounds[4]) / 2)
+                self.shift[0] = center[0]
+            elif self.direction == ViewDirection.Coronal:
+                camera.SetParallelScale((bounds[5] - bounds[3]) / 2)
+                self.shift[1] = center[1]
+            self.update()
 
     def update(self):
         for key, node in self.data_storage.nodes.items():
@@ -165,11 +201,16 @@ class RenderWindow:
                     mapper.generate_data_for_renderer(self.renderer)
                 self.renderer.AddViewProp(mapper.get_prop(self.renderer))
         self.vtk_render_window.Render()
+        
+    
 
     def setup(self):
         if self.view_type == ViewType.View2D:
             interactor = vtkRenderWindowInteractor()
             interactor.SetRenderWindow(self.vtk_render_window)
+            interactor_style = ImageInteractor2D(self.direction,self)
+            interactor.SetInteractorStyle(interactor_style)
+            self.get_active_camera().ParallelProjectionOn()
             self.renderer.ResetCamera()
         else:
             trackball_style = vtkInteractorStyleTrackballCamera()

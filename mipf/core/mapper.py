@@ -52,14 +52,14 @@ class ResliceMatrix:
 
     Coronal_Matrix = [
         1, 0, 0, 0,
-        0, 0, -1, 0,
-        0, 1, 0, 0,
+        0, 0, 1, 0,
+        0, -1, 0, 0,
         0, 0, 0, 1]
 
     Sagittal_Matrix = [
-        0, 0, 1, 0,
+        0, 0, -1, 0,
         1, 0, 0, 0,
-        0, 1, 0, 0,
+        0, -1, 0, 0,
         0, 0, 0, 1]
 
 
@@ -367,7 +367,6 @@ class ImageMapper2D(MapperBase):
         data = self.node.get_data()
         if data and data.type == DataType.Image:
             image = data.get_image()
-            
             ls.reslice.SetInputData(image)
             ls.reslice.SetOutputDimensionality(2)
             ls.reslice.SetResliceAxes(ls.matrix)
