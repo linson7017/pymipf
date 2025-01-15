@@ -1,0 +1,4 @@
+include versioneer.py
+include mipf/_version.py
+include mipf/ui/resources/*
+recursive-include mipf/ui/resources *

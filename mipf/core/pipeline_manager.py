@@ -12,6 +12,8 @@ class PipelineManager:
         self._name = name
         self.data_storage = data_storage
         self.update()
+        self._next_id=0
+        
 
     def update(self):
         result = self._add_children([], "0")
@@ -26,12 +28,17 @@ class PipelineManager:
                 continue
             self._add_children(list_to_fill, node.get("id"))
 
+        list_to_fill = sorted(list_to_fill, key=lambda x: x["view_layer"],reverse=True)
         return list_to_fill
 
     def add_node(self, node: DataNode, parent_node=None, **item_keys):
+        _layer_id = f"{self._next_id}"
+        self._next_id += 1
+        
         append_keys = {
             **PipelineManager.DEFAULT_NODE,
-            **item_keys
+            **item_keys,
+            "view_layer":_layer_id
         }
         node.properties.update(
             append_keys

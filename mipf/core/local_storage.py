@@ -1,10 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import TypeVar, Generic, Type
 
-
-T = TypeVar('T') 
-class LocalStroageHandler(Generic[T]):
-    def __init__(self,cls: Type[T]):
+ 
+class LocalStroageHandler():
+    def __init__(self,cls):
         super().__init__()
         self.rls = {}
         self.cls = cls

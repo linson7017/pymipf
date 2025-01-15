@@ -6,6 +6,7 @@ from mipf.core.mapper_mananger import mapper_manager
 from mipf.core.pipeline_manager import PipelineManager
 from mipf.core.render_window import ViewType
 from mipf.core.mapper import *
+from mipf.core.engine import *
 
 VIEW_INTERACT = [
     {"button": 1, "action": "Rotate"},
@@ -20,10 +21,11 @@ VIEW_INTERACT = [
 VIEW_SELECT = [{"button": 1, "action": "Select"}]
 
 
-def initialize_binding(server, data_storage,**kwargs):
+def initialize_binding(server, data_storage, **kwargs):
     state, ctrl = server.state, server.controller
     plotter = kwargs.get("plotter")
-    
+
+    initialize_internal_binding(server, data_storage, **kwargs)
 
     @state.change("files")
     def load_client_files(files, **kwargs):
@@ -61,7 +63,7 @@ def initialize_binding(server, data_storage,**kwargs):
                     image_node["color"] = [1.0, 1.0, 1.0]
                     image_node["name"] = file.name
                     image_node.set_data(image_data)
-                    data_storage.add_node(image_node)          
+                    data_storage.add_node(image_node)
             render_window_manager.request_update_all()
             ctrl.reset_camera()
 
@@ -86,33 +88,31 @@ def initialize_binding(server, data_storage,**kwargs):
 
         render_window_manager.request_update_all()
         ctrl.reset_camera()
-        
+
     @ctrl.set("before_scene_loaded")
     def before_scene_loaded():
         print("before_scene_loaded")
-        
+
     @ctrl.set("after_scene_loaded")
     def after_scene_loaded():
         print("after_scene_loaded")
-        
+
     @ctrl.set("on_ready2")
     def on_ready2():
         print("on_ready2")
-        
+
     @ctrl.set("captura_screen")
-    def captura_screen(name,event):
+    def captura_screen(name, event):
         print("captura_screen")
-       #utils.download(name, event)
-       
-    
+       # utils.download(name, event)
+
     @state.change("viewLayout")
     def update_picking_mode(viewLayout, **kwargs):
         print("View Layout change to ", viewLayout)
         if viewLayout == "FourViews":
-            state.layout_style="display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;width: 100%;height: 100%;"
+            state.layout_style = "display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;width: 100%;height: 100%;"
         else:
-            state.layout_style="display:flex;align-items: center;justify-content: center;width: 100%;height: 100%;"
-        
+            state.layout_style = "display:flex;align-items: center;justify-content: center;width: 100%;height: 100%;"
 
     @state.change("pickingMode")
     def update_picking_mode(pickingMode, **kwargs):
@@ -154,8 +154,8 @@ def initialize_binding(server, data_storage,**kwargs):
                     render_window = render_window_manager.get_activate_renderwindow()
                     wp = render_window.pick(sp)
                     if wp:
-                        if len(pointset_data.get_pointset())>0:
-                            pointset_data.set_point(0,wp)
+                        if len(pointset_data) > 0:
+                            pointset_data.set_point(0, wp)
                         else:
                             pointset_data.add_point(wp)
                         if node.get("activate"):
@@ -169,60 +169,14 @@ def initialize_binding(server, data_storage,**kwargs):
             for node in data_storage.nodes.values():
                 if node.data.type == DataType.PointSet:
                     pointset_data = node.get_data()
-                    if len(pointset_data.get_pointset())>0:
-                            pointset_data.set_point(0,wp)
+                    if len(pointset_data) > 0:
+                        pointset_data.set_point(0, wp)
                     else:
                         pointset_data.add_point(wp)
                     if node.get("activate"):
                         state.points_info = pointset_data.to_list()
             render_window_manager.request_update_all()
             ctrl.view_update()
-
-    @state.change("surface_color")
-    def update_surface_color(surface_color, **kwargs):
-        for node in data_storage.nodes.values():
-            if node.data.type == DataType.Surface and node.get("activate"):
-                color = hex_to_float(surface_color)
-                node["color"] = color
-        render_window_manager.request_update_all()
-        ctrl.view_update()
-
-    @state.change("depth_peeling")
-    def update_depth_peeling(depth_peeling, **kwargs):
-        for render_window in render_window_manager.render_windows:
-            if render_window.view_type == ViewType.View3D:
-                render_window.set_depth_peeling(depth_peeling)
-        render_window_manager.request_update_all()
-        ctrl.view_update()
-
-    @state.change("current_representation")
-    def update_mesh_representation(current_representation, **kwargs):
-        for node in data_storage.nodes.values():
-            if node.data.type == DataType.Surface and node.get("activate"):
-                node["representation"] = current_representation
-        render_window_manager.request_update_all()
-        ctrl.view_update()
-
-    @state.change("image_level_window")
-    def update_image_level_window(image_level_window, **kwargs):
-        for node in data_storage.nodes.values():
-            if node.data.type == DataType.Image and node.get("activate"):
-                scalar_opacity = []
-                scalar_opacity.append((image_level_window[0], 0.0))
-                scalar_opacity.append((image_level_window[0]+50, 0.2))
-                scalar_opacity.append((image_level_window[0]+100, 0.8))
-                scalar_opacity.append((image_level_window[1], 1.0))
-                node["scalar_opacity"] = scalar_opacity
-        render_window_manager.request_update_all()
-        ctrl.view_update()
-
-    @state.change("pointsize")
-    def update_pointsize(pointsize, **kwargs):
-        for node in data_storage.nodes.values():
-            node["pointsize"] = pointsize
-        render_window_manager.request_update_all()
-        ctrl.view_update()
-
 
     if plotter:
         @state.change("show_axes_widget")

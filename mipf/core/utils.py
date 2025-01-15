@@ -1,8 +1,24 @@
-from vtkmodules.vtkIOImage import vtkNIFTIImageReader, vtkMetaImageReader
-from vtkmodules.vtkIOXML import vtkXMLPolyDataReader, vtkXMLImageDataReader
-from vtkmodules.vtkIOGeometry import vtkSTLReader
+from vtkmodules.vtkIOImage import (
+    vtkNIFTIImageReader,
+    vtkMetaImageReader,
+    vtkNIFTIImageWriter,
+    vtkMetaImageWriter)
+from vtkmodules.vtkIOXML import (
+    vtkXMLPolyDataReader,
+    vtkXMLImageDataReader,
+    vtkXMLPolyDataWriter,
+    vtkXMLImageDataWriter)
+from vtkmodules.vtkIOGeometry import (
+    vtkSTLReader,
+    vtkSTLWriter
+)
+from vtkmodules.vtkCommonDataModel import (
+    vtkImageData,
+    vtkPolyData
+)
 
-def load_image(filename: str):
+
+def load_image(filename: str) -> vtkImageData:
     if filename.endswith('nii') or filename.endswith('nii.gz'):
         reader = vtkNIFTIImageReader()
         reader.SetFileName(filename)
@@ -22,7 +38,7 @@ def load_image(filename: str):
         return None
 
 
-def load_surface(filename: str):
+def load_surface(filename: str) -> vtkPolyData:
     if filename.endswith('vtp'):
         reader = vtkXMLPolyDataReader()
         reader.SetFileName(filename)
@@ -37,10 +53,44 @@ def load_surface(filename: str):
         return None
 
 
+def save_image(image: vtkImageData, filename: str):
+    if filename.endswith('nii') or filename.endswith('nii.gz'):
+        writer = vtkNIFTIImageWriter()
+        writer.SetInputData(image)
+        writer.SetFileName(filename)
+        writer.Update()
+    if filename.endswith('vti'):
+        writer = vtkXMLImageDataWriter()
+        writer.SetInputData(image)
+        writer.SetFileName(filename)
+        writer.Update()
+    if filename.endswith('mha'):
+        writer = vtkMetaImageWriter()
+        writer.SetInputData(image)
+        writer.SetFileName(filename)
+        writer.Update()
+    else:
+        raise ValueError(f"Unsupported image file type:{filename}")
+
+
+def save_surface(polydata: vtkPolyData, filename: str) -> vtkPolyData:
+    if filename.endswith('vtp'):
+        writer = vtkXMLPolyDataWriter()
+        writer.SetFileName(filename)
+        writer.Update()
+        return writer.GetOutput()
+    elif filename.endswith('stl'):
+        writer = vtkSTLWriter()
+        writer.SetFileName(filename)
+        writer.Update()
+        return writer.GetOutput()
+    else:
+        raise ValueError(f"Unsupported Surface file type:{filename}")
+
+
 def hex_to_float(hex_color):
     """
-    将十六进制颜色字符串转换为浮点格式。
-    支持 #RRGGBB 和 #RRGGBBAA 格式。
+    Convert color string from hex to rgba int float type。
     """
     hex_color = hex_color.lstrip("#")  # 去掉 '#' 前缀
     if len(hex_color) == 6:  # RGB 格式
@@ -58,11 +108,12 @@ def hex_to_float(hex_color):
     else:
         raise ValueError(
             "Invalid hex color format. Expected #RRGGBB or #RRGGBBAA.")
-        
+
+
 def float_to_hex(float_color):
-    if len(float_color)==3:
+    if len(float_color) == 3:
         float_color += [1.0]
-    if len(float_color)==4:
+    if len(float_color) == 4:
         r, g, b, a = float_color
         r = int(r * 255)
         g = int(g * 255)
@@ -72,9 +123,10 @@ def float_to_hex(float_color):
         return hex_color
     else:
         raise ValueError("Color should be rgb or rgba format!")
-    
+
+
 def extract_tf(xml_data):
-    import xml.etree.ElementTree as ET 
+    import xml.etree.ElementTree as ET
     # 解析 XML 字符串
     root = ET.fromstring(xml_data)
 
@@ -102,8 +154,8 @@ def extract_tf(xml_data):
         midpoint = float(point.get('midpoint'))
         sharpness = float(point.get('sharpness'))
         color.append((x, r, g, b, midpoint, sharpness))
-    
-    return scalar_opacity,gradient_opacity,color
+
+    return scalar_opacity, gradient_opacity, color
 
 
 def bounds_union(*bounds_list):

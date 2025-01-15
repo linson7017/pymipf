@@ -15,9 +15,11 @@ from vtkmodules.vtkCommonDataModel import (
     vtkPolyData,
     vtkPointSet
 )
+from vtkmodules.numpy_interface.dataset_adapter import vtkDataArrayToVTKArray
 
 
 class DataType(Enum):
+    Undefined = 0
     Image = 1
     Surface = 2
     PointSet = 3
@@ -109,14 +111,17 @@ class PointSetData(BaseData):
 
     def get_pointset(self):
         return self._pointset
+    
+    def get_points_array(self):
+        return vtkDataArrayToVTKArray(self._pointset.GetData())
 
     def get_point(self, index):
-        if index < len(self._pointset.GetNumberOfPoints()):
+        if index < self._pointset.GetNumberOfPoints():
             return self._pointset.GetPoint(index)
         raise ValueError("{} is out of range!".format(index))
 
     def set_point(self, index, point):
-        if index < len(self._pointset):
+        if index < self._pointset.GetNumberOfPoints():
             self._pointset.SetPoint(index, point)
         else:
             raise ValueError("{} is out of range!".format(index))
@@ -132,13 +137,16 @@ class PointSetData(BaseData):
         for i in range(self._pointset.GetNumberOfPoints()):
             result = {}
             result["id"] = i
-            p = self._pointset[i]
+            p = self._pointset.GetPoint(i)
             result["position_x"] = p[0]
             result["position_y"] = p[1]
             result["position_z"] = p[2]
             result["position"] = p
             results.append(result)
         return results
+
+    def __len__(self):
+        return self._pointset.GetNumberOfPoints()
 
     def get_bounds(self):
         return self._pointset.GetBounds()
@@ -158,10 +166,13 @@ class DataNode:
             "opacity": 1.0,
             "activate": False,
             "name": name,
-            "id": uuid.uuid4().hex
+            "id": uuid.uuid4().hex,
+            "layer": 0,
+            "view_layer": 0
         }
         self.parent = None
         self.mappers = {}
+        self.data: BaseData = None
 
     def set_data(self, data: BaseData):
         self.data = data
@@ -271,16 +282,34 @@ class DataStorage:
         for node in self.nodes.values():
             if node.get("visible"):
                 bounds_list.append(node.get_data().get_bounds())
-        return bounds_union(*bounds_list)    
-    
+        return bounds_union(*bounds_list)
+
     def get_center(self):
         bounds = self.get_bounds()
-        center=[0,0,0]
+        center = [0, 0, 0]
         center[0] = (bounds[0]+bounds[1])*0.5
         center[1] = (bounds[2]+bounds[3])*0.5
         center[2] = (bounds[4]+bounds[5])*0.5
-        return center     
+        return center
 
+    def get_top_node(self, data_type: DataType = DataType.Undefined) -> DataNode:
+        if data_type != DataType.Undefined:
+            alt_nodes = [x for x in self.nodes.values()
+                         if x.data.type == data_type]
+        if len(alt_nodes) == 0:
+            return None
+        sort_nodes = sorted(alt_nodes,
+                            key=lambda x: x["layer"], reverse=True)
+        top_nodes = []
+        top_layer = sort_nodes[0]["layer"]
+        for node in sort_nodes:
+            if node["layer"] == top_layer:
+                top_nodes.append(node)
+            else:
+                break
+        sort_nodes = sorted(
+            top_nodes, key=lambda x: x["view_layer"], reverse=True)
+        return sort_nodes[0]
 
 
 def import_image_file(filename, node_name="undefined"):
