@@ -19,6 +19,10 @@ pip install ./dist/mipf-**.whl
 
 ## 3. Run a web application:
 ```console
+workbench -f "your image(*.vti,*.nii,*.mha) or model(*.vtp,*.stl,*.ply) filepath"
+```
+or specify host and port
+```console
 workbench -f "your image(*.vti,*.nii,*.mha) or model(*.vtp,*.stl,*.ply) filepath" --port "port" --host 'host ip' --server
 ```
 
