@@ -1,6 +1,6 @@
 from trame.app import get_server
 from trame.ui.vuetify import SinglePageLayout, SinglePageWithDrawerLayout, VAppLayout
-from trame.widgets import vuetify, html, trame, vtk as vtk_widgets
+from trame.widgets import vuetify, html, vtk as vtk_widgets
 
 
 from mipf.core.render_window import *
@@ -8,16 +8,14 @@ from mipf.core.data import *
 from mipf.core.utils import *
 from mipf.ui.data import *
 from mipf.ui.engine import *
-
+from mipf.ui.app import AppBase
 server = get_server(client_type="vue2")
 state = server.state
 
 
-class Workbench:
+class Workbench(AppBase):
     def __init__(self, server, app_name="Undefined"):
-        self.server = server
-        self.app_name = app_name
-        self.data_storage = DataStorage()
+        super().__init__(server, app_name)
         self.state.update(
             {
                 "active_node_type": None,
@@ -48,32 +46,6 @@ class Workbench:
         )
         self.render_windows = []
 
-    @property
-    def state(self):
-        return self.server.state
-
-    @property
-    def ctrl(self):
-        return self.server.controller
-
-    def load(self, filename: str, name="undefined"):
-        if filename.endswith('nii') or filename.endswith('nii.gz') or \
-                filename.endswith('vti') or filename.endswith('mha') or \
-                filename.endswith('nrrd'):
-            node = import_image_file(filename, name)
-            self.data_storage.add_node(node)
-            render_window_manager.request_update_all()
-            self.ctrl.reset_camera()
-            self.ctrl.view_update()
-        elif filename.endswith('vtp') or filename.endswith('stl'):
-            node = import_surface_file(filename, name)
-            self.data_storage.add_node(node)
-            render_window_manager.request_update_all()
-            self.ctrl.reset_camera()
-            self.ctrl.view_update()
-        else:
-            print("Not a supported file ", filename)
-
     def setupui(self):
         use_plotter = False
         self.rendow_rendows = {
@@ -92,9 +64,6 @@ class Workbench:
             render_window.setup()
 
         initialize_binding(server, self.data_storage)
-        state = server.state
-        ctrl = server.controller
-        data_storage = self.data_storage
 
         with SinglePageWithDrawerLayout(server) as layout:
             # Toolbar

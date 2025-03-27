@@ -8,7 +8,7 @@ from mipf.core.data import *
 from mipf.core.utils import *
 from mipf.ui.data import *
 from mipf.ui.engine import *
-
+from mipf.ui.app import AppBase
 
 from trame_vtk.modules.vtk.widget import WidgetManager
 from vtkmodules.vtkInteractionWidgets import vtkImplicitPlaneWidget2
@@ -21,11 +21,9 @@ def init_scene(*args, **kwargs):
     print("exec_function", args, kwargs)
 
 
-class Workbench:
+class Workbench(AppBase):
     def __init__(self, server, app_name="Undefined"):
-        self.server = server
-        self.app_name = app_name
-        self.data_storage = DataStorage()
+        super().__init__(server, app_name)
         self.state.update(
             {
                 "active_node_type": None,
@@ -46,32 +44,6 @@ class Workbench:
             }
         )
 
-    @property
-    def state(self):
-        return self.server.state
-
-    @property
-    def ctrl(self):
-        return self.server.controller
-
-    def load(self, filename: str, name="undefined"):
-        if filename.endswith('nii') or filename.endswith('nii.gz') or \
-                filename.endswith('vti') or filename.endswith('mha') or \
-                filename.endswith('nrrd'):
-            node = import_image_file(filename, name)
-            self.data_storage.add_node(node)
-            render_window_manager.request_update_all()
-            self.ctrl.reset_camera()
-            self.ctrl.view_update()
-        elif filename.endswith('vtp') or filename.endswith('stl'):
-            node = import_surface_file(filename, name)
-            self.data_storage.add_node(node)
-            render_window_manager.request_update_all()
-            self.ctrl.reset_camera()
-            self.ctrl.view_update()
-        else:
-            print("Not a supported file ", filename)
-
     def setupui(self):
         use_plotter = False
         self.render_window = RenderWindow(self.data_storage,
@@ -82,13 +54,10 @@ class Workbench:
 
         initialize_binding(server, self.data_storage,
                            plotter=self.render_window.get_plotter())
-        state = server.state
-        ctrl = server.controller
-        data_storage = self.data_storage
 
         @state.change("current_vessel")
         def update_current_vessel(current_vessel, **kwargs):
-            for node in data_storage.nodes.values():
+            for node in self.data_storage.nodes.values():
                 if "vessel_" in node['name']:
                     index = node["name"].split("_")[1]
                     index = index.split(".")[0]
@@ -97,18 +66,18 @@ class Workbench:
                             node['visible'] = True
                         else:
                             node['visible'] = False
-            data_storage.modefied(0)
+            self.data_storage.modefied(0)
             render_window_manager.request_update_all()
-            ctrl.view_update()
+            self.ctrl.view_update()
 
-        @ctrl.set("init_scene")
+        @self.ctrl.set("init_scene")
         def init_scene():
             number = 0
-            for node in data_storage.nodes.values():
+            for node in self.data_storage.nodes.values():
                 if "vessel" in node['name']:
                     number += 1
-            state.vessel_number = number-1
-            state.current_vessel = 0
+            self.state.vessel_number = number-1
+            self.state.current_vessel = 0
 
         @state.change("tf_files")
         def load_tf_files(tf_files, **kwargs):
@@ -130,13 +99,13 @@ class Workbench:
                     scalar_opacity, gradient_opacity, color = extract_tf(
                         file.content)
 
-                    for node in data_storage.nodes.values():
+                    for node in self.data_storage.nodes.values():
                         if node.data.type == DataType.Image and node.get("activate"):
                             node["scalar_opacity"] = scalar_opacity
                             node["gradient_opacity"] = gradient_opacity
                             node["colors"] = color
                     render_window_manager.request_update_all()
-                    ctrl.view_update()
+                    self.ctrl.view_update()
 
         with SinglePageWithDrawerLayout(server) as layout:
             # Toolbar

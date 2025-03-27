@@ -156,6 +156,10 @@ class SurfaceMapper3D(MapperBase):
         if "representation" in self.node.properties:
             update_representation(
                 self.get_prop(renderer), self.node.get("representation"))
+            
+        # self.get_prop(renderer).GetProperty().SetInterpolationToPBR()
+        # self.get_prop(renderer).GetProperty().SetMetallic(0.5)
+        # self.get_prop(renderer).GetProperty().SetRoughness(0.0)
 
     def generate_data_for_renderer(self, renderer):
         ls = self.lsh.get_local_storage(renderer)
@@ -209,6 +213,8 @@ class ImageMapper3D(MapperBase):
     def get_prop(self, renderer):
         ls = self.lsh.get_local_storage(renderer)
         return ls.volume
+    
+    vtkImageData.GetDirectionMatrix
 
     def initialize_mapper(self, renderer):
         pass
