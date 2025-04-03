@@ -10,9 +10,6 @@ from mipf.ui.data import *
 from mipf.ui.engine import *
 from mipf.ui.app import AppBase
 
-from trame_vtk.modules.vtk.widget import WidgetManager
-from vtkmodules.vtkInteractionWidgets import vtkImplicitPlaneWidget2
-
 server = get_server(client_type="vue2")
 state = server.state
 
@@ -249,7 +246,7 @@ def main(server=None, **kwargs):
     server.client_type = "vue2"
 
     # Init application
-    app = Workbench(server, "MIPF")
+    app = Workbench(server, "UnionStrong")
     app.setupui()
     
     #app.load(r'E:\test_data\CTA\cta.mha', "cta_image")
