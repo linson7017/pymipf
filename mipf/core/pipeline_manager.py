@@ -26,6 +26,9 @@ class PipelineManager:
             list_to_fill.append(node.properties)
             if node.get("collapsed"):
                 continue
+            if node.get("helper object"):
+                continue
+            
             self._add_children(list_to_fill, node.get("id"))
 
         list_to_fill = sorted(list_to_fill, key=lambda x: x["view_layer"],reverse=True)

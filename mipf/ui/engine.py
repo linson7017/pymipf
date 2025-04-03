@@ -21,6 +21,40 @@ VIEW_INTERACT = [
 VIEW_SELECT = [{"button": 1, "action": "Select"}]
 
 
+def load_client_files(files, data_storage, **kwargs):
+    if files is None or len(files) == 0:
+        return []
+    if files and len(files):
+        if not files[0].get("content"):
+            return []   
+
+    nodes = []
+    for file in files:
+        file = ClientFile(file)
+        print(f"Loading {file.name} ...")
+        if ".vtp" in file.name:
+            bytes = file.content
+            surface_data = SurfaceData()
+            surface_data.read_byte("vtp", bytes)
+            surface_node = DataNode()
+            surface_node["color"] = [1.0, 1.0, 1.0]
+            surface_node["name"] = file.name
+            surface_node.set_data(surface_data)
+            data_storage.add_node(surface_node)
+            nodes.append(surface_node)
+        elif ".vti" in file.name:
+            bytes = file.content
+            image_data = ImageData()
+            image_data.read_byte("vti", bytes)
+            image_node = DataNode()
+            image_node["color"] = [1.0, 1.0, 1.0]
+            image_node["name"] = file.name
+            image_node.set_data(image_data)
+            data_storage.add_node(image_node)
+            nodes.append(image_node)
+    render_window_manager.request_update_all()
+    return nodes
+
 def initialize_binding(server, data_storage, **kwargs):
     state, ctrl = server.state, server.controller
     plotter = kwargs.get("plotter")
@@ -28,44 +62,11 @@ def initialize_binding(server, data_storage, **kwargs):
     initialize_internal_binding(server, data_storage, **kwargs)
 
     @state.change("files")
-    def load_client_files(files, **kwargs):
+    def input_files_changed(files, **kwargs):
         if files is None or len(files) == 0:
             return
-
-        field = "solid"
-        fields = {
-            "solid": {"value": "solid", "text": "Solid color", "range": [0, 1]},
-        }
-        meshes = []
-        filesOutput = []
-
-        if files and len(files):
-            if not files[0].get("content"):
-                return
-
-            for file in files:
-                file = ClientFile(file)
-                print(f"Load {file.name}")
-                if ".vtp" in file.name:
-                    bytes = file.content
-                    surface_data = SurfaceData()
-                    surface_data.read_byte("vtp", bytes)
-                    surface_node = DataNode()
-                    surface_node["color"] = [1.0, 1.0, 1.0]
-                    surface_node["name"] = file.name
-                    surface_node.set_data(surface_data)
-                    data_storage.add_node(surface_node)
-                elif ".vti" in file.name:
-                    bytes = file.content
-                    image_data = ImageData()
-                    image_data.read_byte("vti", bytes)
-                    image_node = DataNode()
-                    image_node["color"] = [1.0, 1.0, 1.0]
-                    image_node["name"] = file.name
-                    image_node.set_data(image_data)
-                    data_storage.add_node(image_node)
-            render_window_manager.request_update_all()
-            ctrl.reset_camera()
+        load_client_files(files, data_storage, **kwargs)
+        ctrl.reset_camera()
 
     @ctrl.set("load_data")
     def load_data():
